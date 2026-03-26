@@ -1,0 +1,1216 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dream Centre | AI MCQ Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+      body {
+        font-family: "Inter", sans-serif;
+      }
+      .loader {
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #3498db;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+      }
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+      .chip {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 9999px;
+        font-size: 12px;
+        cursor: pointer;
+        transition: background 0.15s;
+        user-select: none;
+      }
+      .chip:hover {
+        opacity: 0.85;
+      }
+      .drag-handle {
+        cursor: grab;
+      }
+      .drag-handle:active {
+        cursor: grabbing;
+      }
+      .question-card.dragging {
+        opacity: 0.4;
+      }
+      .question-card.drag-over {
+        border-top: 2px solid #3b82f6;
+      }
+      .toast {
+        animation: fadeInOut 2.5s ease forwards;
+      }
+      @keyframes fadeInOut {
+        0% {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        10% {
+          opacity: 1;
+          transform: translateY(0);
+        }
+        80% {
+          opacity: 1;
+        }
+        100% {
+          opacity: 0;
+        }
+      }
+      textarea.question-input {
+        resize: none;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body class="bg-gray-900 text-white min-h-screen p-4">
+    <div class="w-full max-w-4xl mx-auto py-8">
+      <div
+        class="bg-gray-800 shadow-2xl rounded-2xl p-6 md:p-10 border border-gray-700"
+      >
+        <!-- Header -->
+        <div class="text-center mb-8">
+          <h1 class="text-3xl md:text-4xl font-bold text-white mb-2">
+            Dream Centre MCQ Generator
+          </h1>
+          <p class="text-gray-400">
+            AI-powered quiz creation tool for teachers.
+          </p>
+        </div>
+
+        <!-- Form -->
+        <div class="space-y-4 mb-8" id="formSection">
+          <!-- Topic -->
+          <div>
+            <label
+              for="topic"
+              class="block text-sm font-medium text-gray-300 mb-2"
+              >Topic</label
+            >
+            <input
+              type="text"
+              id="topic"
+              maxlength="200"
+              class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              placeholder="e.g., Photosynthesis"
+            />
+            <div class="flex flex-wrap gap-2 mt-2">
+              <span
+                class="chip bg-gray-700 text-gray-300"
+                data-topic="Photosynthesis"
+                >Photosynthesis</span
+              >
+              <span
+                class="chip bg-gray-700 text-gray-300"
+                data-topic="World War II"
+                >World War II</span
+              >
+              <span
+                class="chip bg-gray-700 text-gray-300"
+                data-topic="Quadratic Equations"
+                >Quadratic Equations</span
+              >
+              <span
+                class="chip bg-gray-700 text-gray-300"
+                data-topic="Indian Constitution"
+                >Indian Constitution</span
+              >
+              <span
+                class="chip bg-gray-700 text-gray-300"
+                data-topic="Python Basics"
+                >Python Basics</span
+              >
+            </div>
+          </div>
+
+          <!-- Additional Instructions -->
+          <div>
+            <label
+              for="topicModifier"
+              class="block text-sm font-medium text-gray-300 mb-2"
+            >
+              Additional Instructions
+              <span class="text-gray-500 font-normal ml-1">(Optional)</span>
+            </label>
+            <input
+              type="text"
+              id="topicModifier"
+              maxlength="300"
+              class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              placeholder="e.g., Focus on cellular respiration, use NCERT textbook style"
+            />
+            <p class="text-xs text-gray-500 mt-1">
+              Guide the AI with specific instructions about question style,
+              focus areas, or patterns.
+            </p>
+            <div class="flex flex-wrap gap-2 mt-2">
+              <span
+                class="chip bg-blue-900/50 text-blue-300 border border-blue-800"
+                data-modifier="Exam-style questions"
+                >Exam-style</span
+              >
+              <span
+                class="chip bg-blue-900/50 text-blue-300 border border-blue-800"
+                data-modifier="Conceptual understanding focus"
+                >Conceptual</span
+              >
+              <span
+                class="chip bg-blue-900/50 text-blue-300 border border-blue-800"
+                data-modifier="Numerical and calculation-based"
+                >Numerical</span
+              >
+              <span
+                class="chip bg-blue-900/50 text-blue-300 border border-blue-800"
+                data-modifier="Previous year exam pattern"
+                >Previous year</span
+              >
+              <span
+                class="chip bg-blue-900/50 text-blue-300 border border-blue-800"
+                data-modifier="Tricky distractors, common misconceptions"
+                >Tricky</span
+              >
+            </div>
+          </div>
+
+          <!-- Quiz Title -->
+          <div>
+            <label
+              for="quizTitle"
+              class="block text-sm font-medium text-gray-300 mb-2"
+            >
+              Quiz Title
+              <span class="text-gray-500 font-normal">(for PDF header)</span>
+            </label>
+            <input
+              type="text"
+              id="quizTitle"
+              maxlength="100"
+              class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              placeholder="Leave blank to use topic name"
+            />
+          </div>
+
+          <!-- Settings Grid -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label
+                for="difficulty"
+                class="block text-sm font-medium text-gray-300 mb-2"
+                >Difficulty</label
+              >
+              <select
+                id="difficulty"
+                class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              >
+                <option value="easy">Easy</option>
+                <option value="medium" selected>Medium</option>
+                <option value="hard">Hard</option>
+              </select>
+            </div>
+            <div>
+              <label
+                for="numQuestions"
+                class="block text-sm font-medium text-gray-300 mb-2"
+                >Questions</label
+              >
+              <input
+                type="number"
+                id="numQuestions"
+                class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3"
+                value="5"
+                min="1"
+                max="20"
+              />
+            </div>
+            <div>
+              <label
+                for="numOptions"
+                class="block text-sm font-medium text-gray-300 mb-2"
+                >Options</label
+              >
+              <input
+                type="number"
+                id="numOptions"
+                class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3"
+                value="4"
+                min="2"
+                max="6"
+              />
+            </div>
+          </div>
+
+          <button
+            id="generateBtn"
+            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition transform hover:scale-[1.02]"
+          >
+            Generate Questions
+          </button>
+        </div>
+
+        <!-- Loader -->
+        <div id="loader" class="flex flex-col items-center my-8 hidden">
+          <div class="loader"></div>
+          <p id="loadingStatus" class="mt-3 text-sm text-gray-400">
+            Generating questions...
+          </p>
+          <button
+            id="cancelBtn"
+            class="mt-3 text-sm text-red-400 hover:text-red-300 underline cursor-pointer"
+          >
+            Cancel
+          </button>
+        </div>
+
+        <!-- Error -->
+        <div
+          id="errorMessage"
+          class="hidden bg-red-900/50 border border-red-700 text-red-200 px-4 py-3 rounded-lg my-4 text-sm"
+        ></div>
+
+        <!-- Results -->
+        <div id="results" class="hidden">
+          <div
+            id="questionsContainer"
+            class="bg-gray-900/50 p-6 rounded-lg mb-6 border border-gray-700"
+          >
+            <div
+              class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4"
+            >
+              <div class="flex items-center gap-3">
+                <h3 class="text-xl font-semibold">Review Questions</h3>
+                <span
+                  id="selectedCount"
+                  class="text-sm text-gray-400 bg-gray-700 px-3 py-1 rounded-full"
+                ></span>
+              </div>
+              <div class="flex gap-2">
+                <button
+                  id="regenerateAllBtn"
+                  class="text-sm bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg flex items-center gap-2"
+                >
+                  <svg
+                    class="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                    ></path>
+                  </svg>
+                  Regenerate All
+                </button>
+                <button
+                  id="toggleSelectAllBtn"
+                  class="text-sm bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg"
+                >
+                  Deselect All
+                </button>
+              </div>
+            </div>
+            <div id="questionsList" class="space-y-4"></div>
+            <button
+              id="addQuestionBtn"
+              class="mt-4 w-full border-2 border-dashed border-gray-600 hover:border-gray-500 text-gray-400 hover:text-gray-300 py-3 rounded-lg transition"
+            >
+              + Add Question
+            </button>
+          </div>
+
+          <!-- Export Buttons -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <button
+              id="exportStudentSheetBtn"
+              class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3 px-4 rounded-lg transition text-sm"
+            >
+              Export Student Sheet (PDF)
+            </button>
+            <button
+              id="exportQuestionsBtn"
+              class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition text-sm"
+            >
+              Export Questions (PDF)
+            </button>
+            <button
+              id="exportAnswersBtn"
+              class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition text-sm"
+            >
+              Export Q&A Key (PDF)
+            </button>
+            <button
+              id="copyTextBtn"
+              class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-3 px-4 rounded-lg transition text-sm"
+            >
+              Copy as Text
+            </button>
+            <button
+              id="exportJsonBtn"
+              class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-3 px-4 rounded-lg transition text-sm"
+            >
+              Save Quiz (JSON)
+            </button>
+            <label
+              class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-3 px-4 rounded-lg transition text-sm text-center cursor-pointer"
+            >
+              Load Quiz (JSON)
+              <input
+                type="file"
+                id="importJsonInput"
+                accept=".json"
+                class="hidden"
+              />
+            </label>
+          </div>
+        </div>
+      </div>
+      <footer class="text-center text-gray-500 mt-6 text-sm">
+        A custom quiz generator for
+        <span class="text-blue-400 font-semibold">Dream Centre</span>
+      </footer>
+    </div>
+
+    <!-- Toast container -->
+    <div
+      id="toastContainer"
+      class="fixed bottom-6 right-6 z-50 space-y-2"
+    ></div>
+
+    <script>
+      // --- Constants ---
+      const API_TIMEOUT_MS = 30000;
+      const MAX_RETRIES = 2;
+      const RETRY_DELAY_MS = 1000;
+      const GEMINI_MODEL = "gemini-2.5-flash";
+      const LS_PREFIX = "dcquiz_";
+
+      // --- State ---
+      const isLocal = ["localhost", "127.0.0.1"].includes(
+        window.location.hostname,
+      );
+      let generatedData = [];
+      let abortController = null;
+      let isGenerating = false;
+
+      // --- DOM refs ---
+      const generateBtn = document.getElementById("generateBtn");
+      const cancelBtn = document.getElementById("cancelBtn");
+      const topicInput = document.getElementById("topic");
+      const topicModifierInput = document.getElementById("topicModifier");
+      const quizTitleInput = document.getElementById("quizTitle");
+      const difficultySelect = document.getElementById("difficulty");
+      const numQuestionsInput = document.getElementById("numQuestions");
+      const numOptionsInput = document.getElementById("numOptions");
+      const loader = document.getElementById("loader");
+      const loadingStatus = document.getElementById("loadingStatus");
+      const resultsDiv = document.getElementById("results");
+      const questionsList = document.getElementById("questionsList");
+      const errorMessageDiv = document.getElementById("errorMessage");
+      const toggleSelectAllBtn = document.getElementById("toggleSelectAllBtn");
+      const regenerateAllBtn = document.getElementById("regenerateAllBtn");
+      const addQuestionBtn = document.getElementById("addQuestionBtn");
+      const selectedCountSpan = document.getElementById("selectedCount");
+      const toastContainer = document.getElementById("toastContainer");
+
+      // --- Topic chip listeners ---
+      document.querySelectorAll("[data-topic]").forEach((chip) => {
+        chip.addEventListener("click", () => {
+          topicInput.value = chip.dataset.topic;
+          topicInput.focus();
+          saveFormState();
+        });
+      });
+
+      // --- Modifier chip listeners ---
+      document.querySelectorAll("[data-modifier]").forEach((chip) => {
+        chip.addEventListener("click", () => {
+          const current = topicModifierInput.value.trim();
+          topicModifierInput.value = current
+            ? current + ", " + chip.dataset.modifier
+            : chip.dataset.modifier;
+          topicModifierInput.focus();
+          saveFormState();
+        });
+      });
+
+      // --- Event listeners ---
+      generateBtn.addEventListener("click", handleGenerate);
+      cancelBtn.addEventListener("click", handleCancel);
+      document
+        .getElementById("exportQuestionsBtn")
+        .addEventListener("click", () => exportPDF("questions"));
+      document
+        .getElementById("exportAnswersBtn")
+        .addEventListener("click", () => exportPDF("key"));
+      document
+        .getElementById("exportStudentSheetBtn")
+        .addEventListener("click", () => exportPDF("student"));
+      document
+        .getElementById("copyTextBtn")
+        .addEventListener("click", copyAsText);
+      document
+        .getElementById("exportJsonBtn")
+        .addEventListener("click", exportJSON);
+      document
+        .getElementById("importJsonInput")
+        .addEventListener("change", importJSON);
+      toggleSelectAllBtn.addEventListener("click", toggleSelectAll);
+      regenerateAllBtn.addEventListener("click", handleGenerate);
+      addQuestionBtn.addEventListener("click", addBlankQuestion);
+
+      // Enter key on topic input
+      topicInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && !isGenerating) handleGenerate();
+      });
+
+      // Persist form inputs on change
+      [
+        "topic",
+        "topicModifier",
+        "quizTitle",
+        "difficulty",
+        "numQuestions",
+        "numOptions",
+      ].forEach((id) => {
+        const el = document.getElementById(id);
+        el.addEventListener("input", saveFormState);
+        el.addEventListener("change", saveFormState);
+      });
+
+      // beforeunload warning
+      window.addEventListener("beforeunload", (e) => {
+        if (generatedData.length > 0) {
+          e.preventDefault();
+          e.returnValue = "";
+        }
+      });
+
+      // --- Local Storage ---
+      function saveFormState() {
+        const state = {
+          topic: topicInput.value,
+          topicModifier: topicModifierInput.value,
+          quizTitle: quizTitleInput.value,
+          difficulty: difficultySelect.value,
+          numQuestions: numQuestionsInput.value,
+          numOptions: numOptionsInput.value,
+        };
+        localStorage.setItem(LS_PREFIX + "form", JSON.stringify(state));
+      }
+
+      function loadFormState() {
+        try {
+          const raw = localStorage.getItem(LS_PREFIX + "form");
+          if (!raw) return;
+          const state = JSON.parse(raw);
+          if (state.topic) topicInput.value = state.topic;
+          if (state.topicModifier)
+            topicModifierInput.value = state.topicModifier;
+          if (state.quizTitle) quizTitleInput.value = state.quizTitle;
+          if (state.difficulty) difficultySelect.value = state.difficulty;
+          if (state.numQuestions) numQuestionsInput.value = state.numQuestions;
+          if (state.numOptions) numOptionsInput.value = state.numOptions;
+        } catch {
+          /* ignore */
+        }
+      }
+
+      loadFormState();
+
+      // --- Toast ---
+      function showToast(message) {
+        const toast = document.createElement("div");
+        toast.className =
+          "toast bg-gray-700 text-white px-4 py-2 rounded-lg shadow-lg text-sm";
+        toast.textContent = message;
+        toastContainer.appendChild(toast);
+        setTimeout(() => toast.remove(), 2600);
+      }
+
+      // --- Helpers ---
+      function escapeAttr(str) {
+        const div = document.createElement("div");
+        div.textContent = str;
+        return div.innerHTML;
+      }
+
+      function sleep(ms) {
+        return new Promise((resolve) => setTimeout(resolve, ms));
+      }
+
+      function getCheckedIndices() {
+        return Array.from(document.querySelectorAll(".q-check:checked")).map(
+          (c) => parseInt(c.dataset.index, 10),
+        );
+      }
+
+      // --- API ---
+      async function fetchWithTimeout(url, options, timeoutMs) {
+        abortController = new AbortController();
+        const timeoutId = setTimeout(() => abortController.abort(), timeoutMs);
+        try {
+          return await fetch(url, {
+            ...options,
+            signal: abortController.signal,
+          });
+        } finally {
+          clearTimeout(timeoutId);
+          abortController = null;
+        }
+      }
+
+      async function fetchWithRetry(url, options, retries, timeoutMs) {
+        for (let attempt = 0; attempt <= retries; attempt++) {
+          try {
+            if (attempt > 0) {
+              loadingStatus.textContent = `Retrying... (attempt ${attempt + 1}/${retries + 1})`;
+              await sleep(RETRY_DELAY_MS * attempt);
+            }
+            return await fetchWithTimeout(url, options, timeoutMs);
+          } catch (error) {
+            if (error.name === "AbortError")
+              throw new Error("Request cancelled or timed out.");
+            if (attempt === retries) throw error;
+          }
+        }
+      }
+
+      function buildPrompt(numQuestions) {
+        const topic = topicInput.value.trim();
+        const modifier = topicModifierInput.value.trim();
+        const difficulty = difficultySelect.value;
+        const numOpts = Math.min(
+          Math.max(parseInt(numOptionsInput.value, 10) || 4, 2),
+          6,
+        );
+
+        const optionsSchema = Array(numOpts).fill('"string"').join(", ");
+
+        let prompt = `Generate a JSON array of ${numQuestions} MCQs about "${topic}".`;
+        prompt += ` Difficulty: ${difficulty}.`;
+        if (modifier) prompt += ` Instructions: ${modifier}.`;
+        prompt += ` Each question must have exactly ${numOpts} options.`;
+        prompt += ` Format strictly as JSON: [{ "question": "string", "options": [${optionsSchema}], "answer": "correct_option_text" }]`;
+
+        return prompt;
+      }
+
+      async function callAPI(prompt) {
+        let response;
+        let result;
+
+        if (!isLocal) {
+          response = await fetchWithRetry(
+            "/.netlify/functions/generate-quiz",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ prompt }),
+            },
+            MAX_RETRIES,
+            API_TIMEOUT_MS,
+          );
+
+          const contentType = response.headers.get("content-type");
+          if (!contentType || !contentType.includes("application/json")) {
+            throw new Error(
+              `Server returned a non-JSON response (${response.status}).`,
+            );
+          }
+
+          result = await response.json();
+          if (!response.ok)
+            throw new Error(result.error || `Error ${response.status}`);
+          return JSON.parse(result.data);
+        } else {
+          const apiKey = prompt("Enter your Gemini API key for local testing:");
+          if (!apiKey)
+            throw new Error("API key is required for local testing.");
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
+          response = await fetchWithRetry(
+            url,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: { responseMimeType: "application/json" },
+              }),
+            },
+            MAX_RETRIES,
+            API_TIMEOUT_MS,
+          );
+
+          const contentType = response.headers.get("content-type");
+          if (!contentType || !contentType.includes("application/json")) {
+            throw new Error(
+              `Server returned a non-JSON response (${response.status}).`,
+            );
+          }
+
+          result = await response.json();
+          if (!response.ok)
+            throw new Error(
+              result.error?.message || `Error ${response.status}`,
+            );
+          return JSON.parse(result.candidates[0].content.parts[0].text);
+        }
+      }
+
+      // --- Generate ---
+      async function handleGenerate() {
+        const topic = topicInput.value.trim();
+        if (!topic) {
+          showError("Please enter a topic.");
+          return;
+        }
+
+        const numQuestions = Math.min(
+          Math.max(parseInt(numQuestionsInput.value, 10) || 5, 1),
+          20,
+        );
+
+        hideError();
+        resultsDiv.classList.add("hidden");
+        loader.classList.remove("hidden");
+        loadingStatus.textContent = "Generating questions...";
+        generateBtn.disabled = true;
+        isGenerating = true;
+
+        const systemPrompt = buildPrompt(numQuestions);
+
+        try {
+          generatedData = await callAPI(systemPrompt);
+          saveFormState();
+          displayResults();
+          resultsDiv.scrollIntoView({ behavior: "smooth", block: "start" });
+        } catch (error) {
+          if (error.name !== "AbortError") {
+            console.error(error);
+            showError(`Error: ${error.message}`);
+          }
+        } finally {
+          loader.classList.add("hidden");
+          generateBtn.disabled = false;
+          isGenerating = false;
+        }
+      }
+
+      function handleCancel() {
+        if (abortController) {
+          abortController.abort();
+          abortController = null;
+        }
+        loader.classList.add("hidden");
+        generateBtn.disabled = false;
+        isGenerating = false;
+      }
+
+      // --- Add blank question ---
+      function addBlankQuestion() {
+        const numOpts = Math.min(
+          Math.max(parseInt(numOptionsInput.value, 10) || 4, 2),
+          6,
+        );
+        generatedData.push({
+          question: "",
+          options: Array(numOpts).fill(""),
+          answer: "",
+        });
+        displayResults();
+        // Focus the last question's textarea
+        const lastTextarea = questionsList.querySelector(
+          "div:last-of-type textarea.question-input",
+        );
+        if (lastTextarea) lastTextarea.focus();
+      }
+
+      // --- Regenerate single question ---
+      async function regenerateQuestion(index) {
+        const card = questionsList.children[index];
+        if (!card) return;
+
+        const spinner = card.querySelector(".regen-spinner");
+        const regenBtn = card.querySelector(".regen-btn");
+        if (spinner) spinner.classList.remove("hidden");
+        if (regenBtn) regenBtn.disabled = true;
+
+        try {
+          const numOpts = Math.min(
+            Math.max(parseInt(numOptionsInput.value, 10) || 4, 2),
+            6,
+          );
+          const prompt = buildPrompt(1);
+          const data = await callAPI(prompt);
+          if (data && data.length > 0) {
+            generatedData[index] = data[0];
+            displayResults();
+          }
+        } catch (error) {
+          showToast("Failed to regenerate: " + error.message);
+        }
+      }
+
+      // --- Delete question ---
+      function deleteQuestion(index) {
+        generatedData.splice(index, 1);
+        displayResults();
+      }
+
+      // --- Display results ---
+      function displayResults() {
+        questionsList.innerHTML = "";
+        const numOpts = parseInt(numOptionsInput.value, 10) || 4;
+
+        generatedData.forEach((item, index) => {
+          const card = document.createElement("div");
+          card.className =
+            "question-card bg-gray-800 rounded-lg p-4 border border-gray-700 relative group";
+          card.draggable = true;
+          card.dataset.index = index;
+
+          // Drag handle
+          const dragHandle = document.createElement("div");
+          dragHandle.className =
+            "drag-handle text-gray-500 hover:text-gray-300 absolute top-3 left-2 select-none";
+          dragHandle.innerHTML = "&#8942;&#8942;";
+          dragHandle.title = "Drag to reorder";
+          card.appendChild(dragHandle);
+
+          // Top row: checkbox + controls
+          const topRow = document.createElement("div");
+          topRow.className = "flex items-start gap-3 ml-6";
+
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.checked = true;
+          checkbox.dataset.index = index;
+          checkbox.className =
+            "q-check mt-1 w-5 h-5 rounded bg-gray-700 border-gray-600 text-blue-500 flex-shrink-0";
+          checkbox.addEventListener("change", updateSelectedCount);
+          topRow.appendChild(checkbox);
+
+          const contentDiv = document.createElement("div");
+          contentDiv.className = "flex-1 min-w-0";
+
+          // Question number + textarea
+          const qLabel = document.createElement("label");
+          qLabel.className = "block text-sm font-medium text-gray-400 mb-1";
+          qLabel.textContent = `Question ${index + 1}`;
+          contentDiv.appendChild(qLabel);
+
+          const qTextarea = document.createElement("textarea");
+          qTextarea.className =
+            "question-input w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none";
+          qTextarea.rows = 2;
+          qTextarea.value = item.question;
+          qTextarea.addEventListener("input", () => {
+            generatedData[index].question = qTextarea.value;
+            autoResize(qTextarea);
+          });
+          contentDiv.appendChild(qTextarea);
+
+          // Options
+          const optionsGrid = document.createElement("div");
+          optionsGrid.className = "grid grid-cols-1 md:grid-cols-2 gap-2 mt-3";
+
+          item.options.forEach((opt, oi) => {
+            const optRow = document.createElement("div");
+            optRow.className = "flex items-center gap-2";
+
+            const optLabel = document.createElement("span");
+            optLabel.className =
+              "text-sm text-gray-400 font-medium flex-shrink-0 w-5";
+            optLabel.textContent = `${String.fromCharCode(65 + oi)})`;
+            optRow.appendChild(optLabel);
+
+            const optInput = document.createElement("input");
+            optInput.type = "text";
+            optInput.className =
+              "flex-1 bg-gray-700 border border-gray-600 text-white rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none min-w-0";
+            optInput.value = opt;
+            optInput.addEventListener("input", () => {
+              generatedData[index].options[oi] = optInput.value;
+            });
+            optRow.appendChild(optInput);
+
+            optionsGrid.appendChild(optRow);
+          });
+          contentDiv.appendChild(optionsGrid);
+
+          // Answer
+          const answerRow = document.createElement("div");
+          answerRow.className = "flex items-center gap-2 mt-3";
+          const answerLabel = document.createElement("span");
+          answerLabel.className = "text-xs font-bold text-green-400";
+          answerLabel.textContent = "Correct:";
+          answerRow.appendChild(answerLabel);
+
+          const answerSelect = document.createElement("select");
+          answerSelect.className =
+            "bg-gray-700 border border-gray-600 text-green-400 rounded-lg p-1 text-xs focus:ring-2 focus:ring-green-500 focus:outline-none font-bold";
+          // Blank option
+          const blankOpt = document.createElement("option");
+          blankOpt.value = "";
+          blankOpt.textContent = "-- select --";
+          if (!item.answer) blankOpt.selected = true;
+          answerSelect.appendChild(blankOpt);
+          item.options.forEach((opt, oi) => {
+            const o = document.createElement("option");
+            o.value = opt;
+            o.textContent = `${String.fromCharCode(65 + oi)}) ${opt}`;
+            if (opt === item.answer) o.selected = true;
+            answerSelect.appendChild(o);
+          });
+          answerSelect.addEventListener("change", () => {
+            generatedData[index].answer = answerSelect.value;
+          });
+          answerRow.appendChild(answerSelect);
+          contentDiv.appendChild(answerRow);
+
+          topRow.appendChild(contentDiv);
+
+          // Action buttons (right side)
+          const actionsDiv = document.createElement("div");
+          actionsDiv.className = "flex flex-col gap-1 flex-shrink-0";
+
+          // Regenerate button
+          const regenBtn = document.createElement("button");
+          regenBtn.className =
+            "regen-btn p-1.5 text-gray-400 hover:text-blue-400 hover:bg-gray-700 rounded transition";
+          regenBtn.title = "Regenerate this question";
+          regenBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>`;
+          regenBtn.addEventListener("click", () => regenerateQuestion(index));
+          actionsDiv.appendChild(regenBtn);
+
+          // Regenerate spinner
+          const regenSpinner = document.createElement("div");
+          regenSpinner.className = "regen-spinner hidden";
+          regenSpinner.innerHTML = `<div class="loader" style="width:20px;height:20px;border-width:2px;"></div>`;
+          actionsDiv.appendChild(regenSpinner);
+
+          // Delete button
+          const delBtn = document.createElement("button");
+          delBtn.className =
+            "p-1.5 text-gray-400 hover:text-red-400 hover:bg-gray-700 rounded transition";
+          delBtn.title = "Delete this question";
+          delBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>`;
+          delBtn.addEventListener("click", () => deleteQuestion(index));
+          actionsDiv.appendChild(delBtn);
+
+          topRow.appendChild(actionsDiv);
+          card.appendChild(topRow);
+          questionsList.appendChild(card);
+
+          // Auto-resize textarea
+          autoResize(qTextarea);
+        });
+
+        resultsDiv.classList.remove("hidden");
+        updateSelectedCount();
+        initDragAndDrop();
+      }
+
+      function autoResize(textarea) {
+        textarea.style.height = "auto";
+        textarea.style.height = textarea.scrollHeight + "px";
+      }
+
+      // --- Selected count ---
+      function updateSelectedCount() {
+        const total = document.querySelectorAll(".q-check").length;
+        const checked = document.querySelectorAll(".q-check:checked").length;
+        selectedCountSpan.textContent = `${checked} of ${total} selected`;
+        toggleSelectAllBtn.textContent =
+          checked === total ? "Deselect All" : "Select All";
+      }
+
+      function toggleSelectAll() {
+        const checks = document.querySelectorAll(".q-check");
+        const allChecked = Array.from(checks).every((c) => c.checked);
+        checks.forEach((c) => (c.checked = !allChecked));
+        updateSelectedCount();
+      }
+
+      // --- Drag and drop ---
+      function initDragAndDrop() {
+        const cards = questionsList.querySelectorAll(".question-card");
+        let draggedIndex = null;
+
+        cards.forEach((card) => {
+          card.addEventListener("dragstart", (e) => {
+            draggedIndex = parseInt(card.dataset.index, 10);
+            card.classList.add("dragging");
+            e.dataTransfer.effectAllowed = "move";
+          });
+
+          card.addEventListener("dragend", () => {
+            card.classList.remove("dragging");
+            cards.forEach((c) => c.classList.remove("drag-over"));
+            draggedIndex = null;
+          });
+
+          card.addEventListener("dragover", (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "move";
+            cards.forEach((c) => c.classList.remove("drag-over"));
+            card.classList.add("drag-over");
+          });
+
+          card.addEventListener("dragleave", () => {
+            card.classList.remove("drag-over");
+          });
+
+          card.addEventListener("drop", (e) => {
+            e.preventDefault();
+            card.classList.remove("drag-over");
+            const targetIndex = parseInt(card.dataset.index, 10);
+            if (draggedIndex !== null && draggedIndex !== targetIndex) {
+              const [moved] = generatedData.splice(draggedIndex, 1);
+              generatedData.splice(targetIndex, 0, moved);
+              displayResults();
+            }
+          });
+        });
+      }
+
+      // --- Export: PDF ---
+      function exportPDF(mode) {
+        const selectedIndices = getCheckedIndices();
+        if (selectedIndices.length === 0)
+          return showError("Select at least one question.");
+
+        const selected = selectedIndices.map((i) => generatedData[i]);
+        const isKey = mode === "key";
+        const isStudent = mode === "student";
+        const title =
+          quizTitleInput.value.trim() || topicInput.value.trim() || "Quiz";
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        const pageHeight = doc.internal.pageSize.height;
+        const pageWidth = doc.internal.pageSize.getWidth();
+        let y = 20;
+        const margin = 20;
+        const maxWidth = pageWidth - margin * 2;
+
+        function checkPageBreak(neededHeight) {
+          if (y + neededHeight > pageHeight - 25) {
+            doc.addPage();
+            y = 20;
+          }
+        }
+
+        // Header
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(18);
+        const titleSuffix = isKey ? " (Answer Key)" : "";
+        const titleLines = doc.splitTextToSize(
+          `Dream Centre: ${title}${titleSuffix}`,
+          maxWidth,
+        );
+        doc.text(titleLines, margin, y);
+        y += titleLines.length * 9 + 4;
+
+        // Date
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        const dateStr = new Date().toLocaleDateString("en-IN", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        });
+        doc.text(`Generated on: ${dateStr}`, margin, y);
+        y += 12;
+
+        // Student sheet header
+        if (isStudent) {
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(12);
+          doc.text("Name: ____________________________", margin, y);
+          doc.text("Date: ______________", margin + 110, y);
+          y += 8;
+          doc.text("Score: ______ / " + selected.length, margin, y);
+          y += 12;
+        }
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(11);
+
+        selected.forEach((q, i) => {
+          // Question
+          const qText = doc.splitTextToSize(
+            `${i + 1}. ${q.question}`,
+            maxWidth,
+          );
+          checkPageBreak(qText.length * 6 + 4);
+          doc.setFont("helvetica", "bold");
+          doc.text(qText, margin, y);
+          doc.setFont("helvetica", "normal");
+          y += qText.length * 6 + 3;
+
+          // Options
+          q.options.forEach((opt, oi) => {
+            const optText = doc.splitTextToSize(
+              `${String.fromCharCode(65 + oi)}) ${opt}`,
+              maxWidth - 15,
+            );
+            checkPageBreak(optText.length * 5.5);
+            if (isStudent) {
+              // Student sheet: circles for answers
+              doc.text("( ) " + optText[0], margin + 5, y);
+              for (let li = 1; li < optText.length; li++) {
+                y += 5;
+                doc.text("    " + optText[li], margin + 5, y);
+              }
+            } else {
+              doc.text(optText, margin + 5, y);
+            }
+            y += optText.length * 5.5 + 1;
+          });
+
+          // Answer (key mode)
+          if (isKey) {
+            y += 2;
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(10);
+            doc.setTextColor(0, 128, 0);
+            const ansText = doc.splitTextToSize(
+              `Answer: ${q.answer}`,
+              maxWidth - 15,
+            );
+            checkPageBreak(ansText.length * 5);
+            doc.text(ansText, margin + 5, y);
+            doc.setTextColor(0, 0, 0);
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(11);
+            y += ansText.length * 5 + 2;
+          }
+
+          y += 8;
+        });
+
+        // Page numbers
+        const pageCount = doc.internal.getNumberOfPages();
+        for (let p = 1; p <= pageCount; p++) {
+          doc.setPage(p);
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(9);
+          doc.setTextColor(150);
+          doc.text(
+            `Page ${p} of ${pageCount}`,
+            pageWidth / 2,
+            pageHeight - 10,
+            { align: "center" },
+          );
+          doc.setTextColor(0);
+        }
+
+        // Filename
+        const safeName = title.replace(/[^a-zA-Z0-9]/g, "_").substring(0, 30);
+        const dateFile = new Date().toISOString().split("T")[0];
+        const suffix = isKey ? "Key" : isStudent ? "StudentSheet" : "Questions";
+        doc.save(`DreamCentre_${safeName}_${dateFile}_${suffix}.pdf`);
+      }
+
+      // --- Export: Copy as Text ---
+      function copyAsText() {
+        const selectedIndices = getCheckedIndices();
+        if (selectedIndices.length === 0)
+          return showError("Select at least one question.");
+
+        const lines = selectedIndices.map((idx, i) => {
+          const q = generatedData[idx];
+          let text = `${i + 1}. ${q.question}`;
+          q.options.forEach((opt, oi) => {
+            text += `\n   ${String.fromCharCode(65 + oi)}) ${opt}`;
+          });
+          text += `\n   Answer: ${q.answer}`;
+          return text;
+        });
+
+        navigator.clipboard
+          .writeText(lines.join("\n\n"))
+          .then(() => {
+            showToast("Copied to clipboard!");
+          })
+          .catch(() => {
+            showError("Failed to copy. Try again.");
+          });
+      }
+
+      // --- Export: JSON ---
+      function exportJSON() {
+        if (generatedData.length === 0)
+          return showError("No questions to save.");
+        const title =
+          quizTitleInput.value.trim() || topicInput.value.trim() || "Quiz";
+        const payload = {
+          title,
+          difficulty: difficultySelect.value,
+          generatedAt: new Date().toISOString(),
+          questions: generatedData,
+        };
+        const blob = new Blob([JSON.stringify(payload, null, 2)], {
+          type: "application/json",
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        const safeName = title.replace(/[^a-zA-Z0-9]/g, "_").substring(0, 30);
+        a.download = `DreamCentre_${safeName}_${new Date().toISOString().split("T")[0]}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast("Quiz saved!");
+      }
+
+      // --- Import: JSON ---
+      function importJSON(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          try {
+            const data = JSON.parse(ev.target.result);
+            if (!Array.isArray(data.questions))
+              throw new Error("Invalid format: missing questions array.");
+            generatedData = data.questions;
+            if (data.title) quizTitleInput.value = data.title;
+            if (data.difficulty) difficultySelect.value = data.difficulty;
+            displayResults();
+            resultsDiv.scrollIntoView({ behavior: "smooth", block: "start" });
+            showToast(`Loaded ${generatedData.length} questions!`);
+          } catch (err) {
+            showError("Failed to load file: " + err.message);
+          }
+        };
+        reader.readAsText(file);
+        e.target.value = "";
+      }
+
+      // --- Error helpers ---
+      function showError(m) {
+        errorMessageDiv.textContent = m;
+        errorMessageDiv.classList.remove("hidden");
+      }
+      function hideError() {
+        errorMessageDiv.classList.add("hidden");
+      }
+    </script>
+  </body>
+</html>

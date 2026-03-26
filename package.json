@@ -1,0 +1,20 @@
+{
+  "name": "ai-quiz-generator",
+  "version": "1.0.0",
+  "description": "AI-powered MCQ generator for Dream Centre using Google Gemini",
+  "private": true,
+  "scripts": {
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write \"*.html\" \"netlify/**/*.js\"",
+    "test": "node --test netlify/functions/generate-quiz.test.js"
+  },
+  "devDependencies": {
+    "eslint": "^9.0.0",
+    "prettier": "^3.4.0",
+    "@eslint/js": "^9.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

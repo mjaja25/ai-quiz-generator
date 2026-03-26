@@ -113,26 +113,31 @@
               <span
                 class="chip bg-gray-700 text-gray-300"
                 data-topic="Photosynthesis"
+                title="Click to auto-fill the topic"
                 >Photosynthesis</span
               >
               <span
                 class="chip bg-gray-700 text-gray-300"
                 data-topic="World War II"
+                title="Click to auto-fill the topic"
                 >World War II</span
               >
               <span
                 class="chip bg-gray-700 text-gray-300"
                 data-topic="Quadratic Equations"
+                title="Click to auto-fill the topic"
                 >Quadratic Equations</span
               >
               <span
                 class="chip bg-gray-700 text-gray-300"
                 data-topic="Indian Constitution"
+                title="Click to auto-fill the topic"
                 >Indian Constitution</span
               >
               <span
                 class="chip bg-gray-700 text-gray-300"
                 data-topic="Python Basics"
+                title="Click to auto-fill the topic"
                 >Python Basics</span
               >
             </div>
@@ -162,26 +167,31 @@
               <span
                 class="chip bg-blue-900/50 text-blue-300 border border-blue-800"
                 data-modifier="Exam-style questions"
+                title="Click to add to instructions"
                 >Exam-style</span
               >
               <span
                 class="chip bg-blue-900/50 text-blue-300 border border-blue-800"
                 data-modifier="Conceptual understanding focus"
+                title="Click to add to instructions"
                 >Conceptual</span
               >
               <span
                 class="chip bg-blue-900/50 text-blue-300 border border-blue-800"
                 data-modifier="Numerical and calculation-based"
+                title="Click to add to instructions"
                 >Numerical</span
               >
               <span
                 class="chip bg-blue-900/50 text-blue-300 border border-blue-800"
                 data-modifier="Previous year exam pattern"
+                title="Click to add to instructions"
                 >Previous year</span
               >
               <span
                 class="chip bg-blue-900/50 text-blue-300 border border-blue-800"
                 data-modifier="Tricky distractors, common misconceptions"
+                title="Click to add to instructions"
                 >Tricky</span
               >
             </div>
@@ -272,6 +282,7 @@
             </div>
             <div
               id="dropzone"
+              title="Upload past quiz files (JSON or PDF). The AI will avoid generating similar questions."
               class="border-2 border-dashed border-gray-600 hover:border-blue-500 rounded-lg p-4 text-center cursor-pointer transition-colors"
             >
               <input
@@ -339,12 +350,14 @@
                 <h3 class="text-xl font-semibold">Review Questions</h3>
                 <span
                   id="selectedCount"
+                  title="Only selected questions are exported. Uncheck to exclude."
                   class="text-sm text-gray-400 bg-gray-700 px-3 py-1 rounded-full whitespace-nowrap"
                 ></span>
               </div>
               <div class="flex flex-wrap w-full sm:w-auto gap-2">
                 <button
                   id="regenerateAllBtn"
+                  title="Generate all new questions. Current questions will be avoided."
                   class="flex-1 sm:flex-none justify-center text-sm bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg flex items-center gap-2"
                 >
                   <svg
@@ -1373,7 +1386,8 @@
           const regenBtn = document.createElement("button");
           regenBtn.className =
             "regen-btn p-1 text-gray-400 hover:text-blue-400 rounded transition";
-          regenBtn.title = "Regenerate";
+          regenBtn.title =
+            "Generate a replacement. Previous attempts are automatically avoided.";
           regenBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>`;
           regenBtn.addEventListener("click", () => regenerateQuestion(index));
           headerRight.appendChild(regenBtn);

@@ -6,7 +6,6 @@
     <title>Dream Centre | AI MCQ Generator</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.9.155/pdf.min.js"></script>
     <style>
       @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
       body {
@@ -479,10 +478,26 @@
       const uploadedCount = document.getElementById("uploadedCount");
       const clearAvoidBtn = document.getElementById("clearAvoidBtn");
 
-      // --- PDF.js worker setup ---
-      if (window.pdfjsLib) {
-        window.pdfjsLib.GlobalWorkerOptions.workerSrc =
-          "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.9.155/pdf.worker.min.js";
+      // --- Lazy-load pdf.js ---
+      let pdfjsLoaded = false;
+      function ensurePDFJS() {
+        if (pdfjsLoaded) return Promise.resolve();
+        return new Promise((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src =
+            "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.9.155/pdf.min.js";
+          script.onload = () => {
+            if (window.pdfjsLib) {
+              window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+                "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.9.155/pdf.worker.min.js";
+            }
+            pdfjsLoaded = true;
+            resolve();
+          };
+          script.onerror = () =>
+            reject(new Error("Failed to load PDF library"));
+          document.head.appendChild(script);
+        });
       }
 
       // --- Topic chip listeners ---
@@ -532,7 +547,14 @@
       addQuestionBtn.addEventListener("click", addBlankQuestion);
 
       // Dropzone: click to upload
-      dropzone.addEventListener("click", () => avoidFileInput.click());
+      dropzone.addEventListener("click", async () => {
+        try {
+          await ensurePDFJS();
+        } catch {
+          /* pdf.js may already be loaded or CDN unavailable */
+        }
+        avoidFileInput.click();
+      });
       avoidFileInput.addEventListener("change", (e) => {
         if (e.target.files.length) handleUpload(e.target.files);
         e.target.value = "";
@@ -546,9 +568,14 @@
       dropzone.addEventListener("dragleave", () => {
         dropzone.classList.remove("border-blue-500", "bg-blue-900/20");
       });
-      dropzone.addEventListener("drop", (e) => {
+      dropzone.addEventListener("drop", async (e) => {
         e.preventDefault();
         dropzone.classList.remove("border-blue-500", "bg-blue-900/20");
+        try {
+          await ensurePDFJS();
+        } catch {
+          /* pdf.js may already be loaded or CDN unavailable */
+        }
         if (e.dataTransfer.files.length) handleUpload(e.dataTransfer.files);
       });
 
@@ -629,12 +656,6 @@
       }
 
       // --- Helpers ---
-      function escapeAttr(str) {
-        const div = document.createElement("div");
-        div.textContent = str;
-        return div.innerHTML;
-      }
-
       function sleep(ms) {
         return new Promise((resolve) => setTimeout(resolve, ms));
       }
@@ -660,14 +681,45 @@
         const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer })
           .promise;
         let allText = "";
+
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
           const content = await page.getTextContent();
-          allText += content.items.map((item) => item.str).join(" ") + "\n";
+
+          // Group text items by y-coordinate to reconstruct lines
+          const lines = {};
+          for (const item of content.items) {
+            const y = Math.round((item.transform?.[5] || 0) / 2) * 2;
+            if (!lines[y]) lines[y] = [];
+            lines[y].push(item.str);
+          }
+          // Sort lines by y (descending for top-to-bottom reading) and join
+          const sortedY = Object.keys(lines)
+            .map(Number)
+            .sort((a, b) => b - a);
+          allText += sortedY.map((y) => lines[y].join(" ")).join("\n") + "\n";
         }
-        // Match lines like "1. What is...?" or "1) What is...?"
-        const matches = allText.match(/^\d+[\.\)]\s+.+(?:\?)$/gm) || [];
-        return matches.map((m) => m.replace(/^\d+[\.\)]\s+/, "").trim());
+
+        // Split by question number patterns, then clean up each fragment
+        const parts = allText.split(/\s*(?=\d+[\.\)]\s)/);
+        const questions = [];
+
+        for (const part of parts) {
+          const match = part.match(/^\d+[\.\)]\s+(.+)/);
+          if (!match) continue;
+
+          let text = match[1]
+            .replace(/\s+/g, " ")
+            .replace(/^[A-D][\.\)]\s*/g, "") // strip leading "A)" artifact
+            .trim();
+
+          // Remove trailing option lines (A) B) C) D) ...) if they leaked in
+          text = text.replace(/\s+[A-D][\.\)]\s+.+$/, "").trim();
+
+          if (text.length > 10) questions.push(text);
+        }
+
+        return questions;
       }
 
       async function handleUpload(files) {
@@ -694,7 +746,7 @@
               avoidQuestions.push(...newQs);
               uploadedFiles.push({
                 name: file.name,
-                questionCount: questions.length,
+                questions: newQs,
               });
               updateUploadedFilesUI();
               showToast(`Added ${newQs.length} questions from ${file.name}`);
@@ -708,6 +760,13 @@
         }
       }
 
+      function rebuildAvoidQuestions() {
+        avoidQuestions = [];
+        for (const file of uploadedFiles) {
+          avoidQuestions.push(...file.questions);
+        }
+      }
+
       function updateUploadedFilesUI() {
         // Update file chips
         uploadedFilesList.innerHTML = "";
@@ -715,21 +774,22 @@
           const chip = document.createElement("span");
           chip.className =
             "inline-flex items-center gap-1 bg-blue-900/40 text-blue-300 text-xs px-2 py-1 rounded-full border border-blue-800";
-          chip.innerHTML = `${escapeAttr(file.name)} (${file.questionCount}) <button class="hover:text-red-400 ml-1" data-index="${i}">&times;</button>`;
+          const nameSpan = document.createElement("span");
+          nameSpan.textContent = `${file.name} (${file.questions.length})`;
+          chip.appendChild(nameSpan);
+
+          const removeBtn = document.createElement("button");
+          removeBtn.className = "hover:text-red-400 ml-1";
+          removeBtn.textContent = "\u00D7";
+          removeBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            uploadedFiles.splice(i, 1);
+            rebuildAvoidQuestions();
+            updateUploadedFilesUI();
+          });
+          chip.appendChild(removeBtn);
           uploadedFilesList.appendChild(chip);
         });
-        // Chip remove handlers
-        uploadedFilesList
-          .querySelectorAll("button[data-index]")
-          .forEach((btn) => {
-            btn.addEventListener("click", (e) => {
-              e.stopPropagation();
-              const idx = parseInt(btn.dataset.index, 10);
-              uploadedFiles.splice(idx, 1);
-              // Rebuild avoidQuestions (not perfect but simple)
-              updateUploadedFilesUI();
-            });
-          });
         // Update count badge
         if (avoidQuestions.length > 0) {
           uploadedCount.classList.remove("hidden");
@@ -974,10 +1034,6 @@
         if (regenBtn) regenBtn.disabled = true;
 
         try {
-          const numOpts = Math.min(
-            Math.max(parseInt(numOptionsInput.value, 10) || 4, 2),
-            6,
-          );
           const prompt = buildPrompt(1);
           const data = await callAPI(prompt);
           if (data && data.length > 0) {
@@ -986,6 +1042,8 @@
           }
         } catch (error) {
           showToast("Failed to regenerate: " + error.message);
+          if (spinner) spinner.classList.add("hidden");
+          if (regenBtn) regenBtn.disabled = false;
         }
       }
 

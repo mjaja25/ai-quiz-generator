@@ -72,7 +72,8 @@
       }
       textarea.question-input {
         resize: none;
-        overflow: hidden;
+        overflow-y: auto;
+        min-height: 44px;
       }
     </style>
   </head>
@@ -605,7 +606,8 @@
         prompt += ` Difficulty: ${difficulty}.`;
         if (modifier) prompt += ` Instructions: ${modifier}.`;
         prompt += ` Each question must have exactly ${numOpts} options.`;
-        prompt += ` Format strictly as JSON: [{ "question": "string", "options": [${optionsSchema}], "answer": "correct_option_text" }]`;
+        prompt += ` Include a brief "explanation" for each answer explaining why it is correct.`;
+        prompt += ` Format strictly as JSON: [{ "question": "string", "options": [${optionsSchema}], "answer": "correct_option_text", "explanation": "brief explanation of the correct answer" }]`;
 
         return prompt;
       }
@@ -710,6 +712,10 @@
                   .filter((o) => o)
               : [],
             answer: typeof item.answer === "string" ? item.answer.trim() : "",
+            explanation:
+              typeof item.explanation === "string"
+                ? item.explanation.trim()
+                : "",
           }));
           // Drop questions with no text or no options
           generatedData = generatedData.filter(
@@ -795,7 +801,7 @@
         displayResults();
       }
 
-      // --- Normalize items from API (trim whitespace, decode HTML entities) ---
+      // --- Normalize items from API ---
       function normalizeItem(item) {
         const decode = (s) => {
           if (!s || typeof s !== "string") return s || "";
@@ -809,6 +815,7 @@
             ? item.options.map(decode).filter((o) => o.length > 0)
             : [],
           answer: decode(item.answer),
+          explanation: decode(item.explanation || ""),
         };
       }
 
@@ -821,14 +828,13 @@
           const norm = normalizeItem(item);
           generatedData[index] = norm;
 
-          // Build card HTML safely using DOM APIs
           const card = document.createElement("div");
           card.className =
             "question-card bg-gray-800 rounded-lg border border-gray-700 overflow-hidden";
           card.draggable = true;
           card.dataset.index = index;
 
-          // Header bar: number + drag + checkbox + actions
+          // Header bar
           const header = document.createElement("div");
           header.className =
             "flex items-center justify-between gap-2 px-4 py-2 bg-gray-700/50 border-b border-gray-700";
@@ -856,10 +862,9 @@
           qNum.className = "text-sm font-semibold text-gray-300";
           qNum.textContent = `Q${index + 1}`;
           headerLeft.appendChild(qNum);
-
           header.appendChild(headerLeft);
 
-          // Header right: action buttons
+          // Header right buttons
           const headerRight = document.createElement("div");
           headerRight.className = "flex items-center gap-1";
 
@@ -895,7 +900,6 @@
           const qTextarea = document.createElement("textarea");
           qTextarea.className =
             "question-input w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none box-border";
-          qTextarea.rows = 2;
           qTextarea.value = norm.question;
           qTextarea.placeholder = "Enter question text...";
           qTextarea.addEventListener("input", () => {
@@ -904,7 +908,7 @@
           });
           body.appendChild(qTextarea);
 
-          // Options - simple vertical list
+          // Options
           norm.options.forEach((opt, oi) => {
             const optRow = document.createElement("div");
             optRow.className = "flex items-center gap-2";
@@ -926,14 +930,12 @@
               updateAnswerDropdown(answerSelect, generatedData[index]);
             });
             optRow.appendChild(optInput);
-
             body.appendChild(optRow);
           });
 
           // Answer dropdown
           const answerRow = document.createElement("div");
           answerRow.className = "flex items-center gap-2 pt-1";
-
           const answerLabel = document.createElement("span");
           answerLabel.className =
             "text-xs font-bold text-green-400 flex-shrink-0";
@@ -949,17 +951,51 @@
             generatedData[index].answer = answerSelect.value;
           });
           answerRow.appendChild(answerSelect);
-
           body.appendChild(answerRow);
+
+          // Explanation toggle + field (for Q&A Key only)
+          const explToggle = document.createElement("button");
+          explToggle.type = "button";
+          explToggle.className =
+            "text-xs text-blue-400 hover:text-blue-300 mt-1 flex items-center gap-1";
+          explToggle.innerHTML = `<svg class="w-3 h-3 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg> Explanation <span class="text-gray-500">(for answer key)</span>`;
+          body.appendChild(explToggle);
+
+          const explContainer = document.createElement("div");
+          explContainer.className = "hidden mt-1";
+
+          const explTextarea = document.createElement("textarea");
+          explTextarea.className =
+            "w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none box-border";
+          explTextarea.rows = 3;
+          explTextarea.value = norm.explanation || "";
+          explTextarea.placeholder =
+            "Explain why this answer is correct (shown only in Q&A Key PDF)...";
+          explTextarea.addEventListener("input", () => {
+            generatedData[index].explanation = explTextarea.value;
+          });
+          explContainer.appendChild(explTextarea);
+          body.appendChild(explContainer);
+
+          explToggle.addEventListener("click", () => {
+            explContainer.classList.toggle("hidden");
+            const arrow = explToggle.querySelector("svg");
+            if (arrow)
+              arrow.style.transform = explContainer.classList.contains("hidden")
+                ? ""
+                : "rotate(180deg)";
+          });
+
           card.appendChild(body);
           questionsList.appendChild(card);
         });
 
-        // Show results FIRST, then auto-resize textareas
         resultsDiv.classList.remove("hidden");
 
-        // Auto-resize all textareas now that they're visible
-        document.querySelectorAll(".question-input").forEach(autoResize);
+        // Auto-resize all textareas after DOM is painted
+        requestAnimationFrame(() => {
+          document.querySelectorAll(".question-input").forEach(autoResize);
+        });
 
         updateSelectedCount();
         initDragAndDrop();
@@ -967,7 +1003,8 @@
 
       function autoResize(textarea) {
         textarea.style.height = "auto";
-        textarea.style.height = textarea.scrollHeight + "px";
+        const h = Math.max(textarea.scrollHeight, 44);
+        textarea.style.height = h + "px";
       }
 
       function populateAnswerDropdown(select, item, options) {
@@ -1188,8 +1225,24 @@
             doc.text(ansText, margin + 5, y);
             doc.setTextColor(0, 0, 0);
             doc.setFont("helvetica", "normal");
+            doc.setFontSize(10);
+            y += ansText.length * 5 + 3;
+
+            // Explanation (key mode)
+            if (q.explanation) {
+              doc.setFont("helvetica", "italic");
+              doc.setTextColor(80, 80, 80);
+              const explText = doc.splitTextToSize(
+                `Explanation: ${q.explanation}`,
+                maxWidth - 15,
+              );
+              checkPageBreak(explText.length * 5);
+              doc.text(explText, margin + 5, y);
+              doc.setTextColor(0, 0, 0);
+              doc.setFont("helvetica", "normal");
+              y += explText.length * 5 + 2;
+            }
             doc.setFontSize(11);
-            y += ansText.length * 5 + 2;
           }
 
           y += 8;

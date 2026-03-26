@@ -7,7 +7,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"*.html\" \"netlify/**/*.js\"",
-    "test": "node --test netlify/functions/generate-quiz.test.js"
+    "test": "node --test tests/generate-quiz.test.js"
   },
   "devDependencies": {
     "eslint": "^9.0.0",

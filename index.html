@@ -81,7 +81,7 @@
   <body class="bg-gray-900 text-white min-h-screen p-4">
     <div class="w-full max-w-4xl mx-auto py-8">
       <div
-        class="bg-gray-800 shadow-2xl rounded-2xl p-6 md:p-10 border border-gray-700"
+        class="bg-gray-800 shadow-2xl rounded-2xl p-4 sm:p-6 md:p-10 border border-gray-700"
       >
         <!-- Header -->
         <div class="text-center mb-8">
@@ -328,22 +328,22 @@
         <div id="results" class="hidden">
           <div
             id="questionsContainer"
-            class="bg-gray-900/50 p-6 rounded-lg mb-6 border border-gray-700"
+            class="bg-gray-900/50 p-4 sm:p-6 rounded-lg mb-6 border border-gray-700"
           >
             <div
               class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4"
             >
-              <div class="flex items-center gap-3">
+              <div class="flex items-center justify-between w-full sm:w-auto gap-3">
                 <h3 class="text-xl font-semibold">Review Questions</h3>
                 <span
                   id="selectedCount"
-                  class="text-sm text-gray-400 bg-gray-700 px-3 py-1 rounded-full"
+                  class="text-sm text-gray-400 bg-gray-700 px-3 py-1 rounded-full whitespace-nowrap"
                 ></span>
               </div>
-              <div class="flex gap-2">
+              <div class="flex flex-wrap w-full sm:w-auto gap-2">
                 <button
                   id="regenerateAllBtn"
-                  class="text-sm bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg flex items-center gap-2"
+                  class="flex-1 sm:flex-none justify-center text-sm bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg flex items-center gap-2"
                 >
                   <svg
                     class="w-4 h-4"
@@ -362,7 +362,7 @@
                 </button>
                 <button
                   id="toggleSelectAllBtn"
-                  class="text-sm bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg"
+                  class="flex-1 sm:flex-none justify-center text-sm bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg whitespace-nowrap"
                 >
                   Deselect All
                 </button>
@@ -1089,7 +1089,7 @@
           // Header bar
           const header = document.createElement("div");
           header.className =
-            "flex items-center justify-between gap-2 px-4 py-2 bg-gray-700/50 border-b border-gray-700";
+            "flex items-center justify-between gap-2 px-3 py-2 sm:px-4 bg-gray-700/50 border-b border-gray-700";
 
           const headerLeft = document.createElement("div");
           headerLeft.className = "flex items-center gap-2";
@@ -1146,7 +1146,7 @@
 
           // Card body
           const body = document.createElement("div");
-          body.className = "p-4 space-y-3";
+          body.className = "p-3 sm:p-4 space-y-3";
 
           // Question textarea
           const qTextarea = document.createElement("textarea");
@@ -1189,21 +1189,31 @@
           // Answer dropdown
           const answerRow = document.createElement("div");
           answerRow.className =
-            "flex items-start gap-2 pt-1 border-t border-gray-700/50 mt-1";
-          const answerLabel = document.createElement("span");
-          answerLabel.className =
-            "text-xs font-bold text-green-400 flex-shrink-0 mt-3";
-          answerLabel.textContent = "Correct:";
-          answerRow.appendChild(answerLabel);
+            "flex flex-col sm:flex-row sm:items-start gap-2 pt-2 border-t border-gray-700/50 mt-1";
+          
+          const titleLabel = document.createElement("span");
+          titleLabel.className =
+            "text-xs font-bold text-green-400 flex-shrink-0 sm:mt-3 hidden sm:block";
+          titleLabel.textContent = "Correct:";
+          answerRow.appendChild(titleLabel);
+
+          const selectContainer = document.createElement("div");
+          selectContainer.className = "flex items-center gap-2 w-full sm:w-auto flex-shrink-0";
+          
+          const mobileLabel = document.createElement("span");
+          mobileLabel.className = "text-xs font-bold text-green-400 sm:hidden block shrink-0";
+          mobileLabel.textContent = "Correct:";
+          selectContainer.appendChild(mobileLabel);
 
           const answerSelect = document.createElement("select");
           answerSelect.className =
-            "w-28 bg-gray-700 border border-gray-600 text-green-400 rounded-lg p-2 text-xs font-bold focus:ring-2 focus:ring-green-500 focus:outline-none";
+            "flex-1 sm:flex-none sm:w-28 bg-gray-700 border border-gray-600 text-green-400 rounded-lg p-2 text-xs font-bold focus:ring-2 focus:ring-green-500 focus:outline-none";
           answerSelect.dataset.questionIndex = index;
+          selectContainer.appendChild(answerSelect);
 
           const answerTextarea = document.createElement("textarea");
           answerTextarea.className =
-            "auto-resize flex-1 bg-gray-700 border border-gray-600 text-green-400 rounded-lg p-2 text-sm font-bold focus:ring-2 focus:ring-green-500 focus:outline-none box-border leading-tight";
+            "auto-resize w-full sm:flex-1 bg-gray-700 border border-gray-600 text-green-400 rounded-lg p-2 text-sm font-bold focus:ring-2 focus:ring-green-500 focus:outline-none box-border leading-tight";
           answerTextarea.rows = 1;
           answerTextarea.value = norm.answer || "";
           answerTextarea.placeholder = "Correct Answer text...";
@@ -1222,7 +1232,7 @@
 
           populateAnswerDropdown(answerSelect, norm, norm.options);
 
-          answerRow.appendChild(answerSelect);
+          answerRow.appendChild(selectContainer);
           answerRow.appendChild(answerTextarea);
           body.appendChild(answerRow);
 
@@ -1258,6 +1268,9 @@
               arrow.style.transform = explContainer.classList.contains("hidden")
                 ? ""
                 : "rotate(180deg)";
+            if (!explContainer.classList.contains("hidden")) {
+              autoResize(explTextarea);
+            }
           });
 
           card.appendChild(body);

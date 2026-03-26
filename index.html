@@ -109,6 +109,10 @@
               class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none"
               placeholder="e.g., Photosynthesis"
             />
+            <div
+              id="topicSuggestions"
+              class="hidden mt-1 bg-gray-700 border border-gray-600 rounded-lg overflow-hidden z-10"
+            ></div>
             <div class="flex flex-wrap gap-2 mt-2">
               <span
                 class="chip bg-gray-700 text-gray-300"
@@ -215,6 +219,70 @@
             />
           </div>
 
+          <!-- Quiz Metadata -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label
+                for="subject"
+                class="block text-sm font-medium text-gray-300 mb-2"
+                >Subject</label
+              >
+              <select
+                id="subject"
+                class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              >
+                <option value="">-- select --</option>
+                <option value="Mathematics">Mathematics</option>
+                <option value="Science">Science</option>
+                <option value="Physics">Physics</option>
+                <option value="Chemistry">Chemistry</option>
+                <option value="Biology">Biology</option>
+                <option value="English">English</option>
+                <option value="Hindi">Hindi</option>
+                <option value="Social Science">Social Science</option>
+                <option value="History">History</option>
+                <option value="Geography">Geography</option>
+                <option value="Civics">Civics</option>
+                <option value="Economics">Economics</option>
+                <option value="Computer Science">Computer Science</option>
+              </select>
+            </div>
+            <div>
+              <label
+                for="gradeLevel"
+                class="block text-sm font-medium text-gray-300 mb-2"
+                >Grade Level</label
+              >
+              <select
+                id="gradeLevel"
+                class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              >
+                <option value="">-- select --</option>
+                <option value="6">Class 6</option>
+                <option value="7">Class 7</option>
+                <option value="8">Class 8</option>
+                <option value="9">Class 9</option>
+                <option value="10">Class 10</option>
+                <option value="11">Class 11</option>
+                <option value="12">Class 12</option>
+              </select>
+            </div>
+            <div>
+              <label
+                for="teacherName"
+                class="block text-sm font-medium text-gray-300 mb-2"
+                >Teacher Name</label
+              >
+              <input
+                type="text"
+                id="teacherName"
+                maxlength="100"
+                class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                placeholder="Optional"
+              />
+            </div>
+          </div>
+
           <!-- Settings Grid -->
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
@@ -261,6 +329,79 @@
                 min="2"
                 max="6"
               />
+            </div>
+          </div>
+
+          <!-- PDF Settings (collapsible) -->
+          <div class="border border-gray-600 rounded-lg overflow-hidden">
+            <button
+              type="button"
+              id="pdfSettingsToggle"
+              class="w-full flex items-center justify-between p-3 text-sm font-medium text-gray-300 hover:bg-gray-700/50"
+            >
+              <span>PDF Settings</span>
+              <svg
+                class="w-4 h-4 transition-transform"
+                id="pdfSettingsArrow"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M19 9l-7 7-7-7"
+                ></path>
+              </svg>
+            </button>
+            <div id="pdfSettingsContent" class="hidden px-3 pb-3">
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label
+                    for="pdfFontSize"
+                    class="block text-sm font-medium text-gray-300 mb-2"
+                    >Font Size</label
+                  >
+                  <select
+                    id="pdfFontSize"
+                    class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  >
+                    <option value="9">Small (9pt)</option>
+                    <option value="11" selected>Medium (11pt)</option>
+                    <option value="13">Large (13pt)</option>
+                  </select>
+                </div>
+                <div>
+                  <label
+                    for="pdfSpacing"
+                    class="block text-sm font-medium text-gray-300 mb-2"
+                    >Line Spacing</label
+                  >
+                  <select
+                    id="pdfSpacing"
+                    class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  >
+                    <option value="compact">Compact</option>
+                    <option value="normal" selected>Normal</option>
+                    <option value="wide">Wide</option>
+                  </select>
+                </div>
+                <div>
+                  <label
+                    for="pdfShowNumbers"
+                    class="block text-sm font-medium text-gray-300 mb-2"
+                    >Question Numbers</label
+                  >
+                  <select
+                    id="pdfShowNumbers"
+                    class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  >
+                    <option value="true" selected>Show</option>
+                    <option value="false">Hide</option>
+                  </select>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -464,6 +605,84 @@
       const GEMINI_MODEL = "gemini-2.5-flash";
       const LS_PREFIX = "dcquiz_";
 
+      const TOPIC_SUGGESTIONS = [
+        "Photosynthesis",
+        "Cell Division",
+        "DNA Replication",
+        "Genetics",
+        "Evolution",
+        "Human Anatomy",
+        "Digestive System",
+        "Nervous System",
+        "Respiratory System",
+        "Circulatory System",
+        "Ecosystems",
+        "Biodiversity",
+        "Plant Physiology",
+        "Microbiology",
+        "Biochemistry",
+        "Newton's Laws",
+        "Thermodynamics",
+        "Electricity",
+        "Magnetism",
+        "Optics",
+        "Waves",
+        "Sound",
+        "Force and Motion",
+        "Gravitation",
+        "Nuclear Physics",
+        "Chemical Bonding",
+        "Acids and Bases",
+        "Organic Chemistry",
+        "Periodic Table",
+        "Chemical Reactions",
+        "Quadratic Equations",
+        "Trigonometry",
+        "Calculus",
+        "Probability",
+        "Statistics",
+        "Linear Algebra",
+        "Geometry",
+        "Mensuration",
+        "Permutations and Combinations",
+        "Matrices",
+        "World War II",
+        "World War I",
+        "French Revolution",
+        "Indian Independence",
+        "Cold War",
+        "Indian Constitution",
+        "Democracy",
+        "Fundamental Rights",
+        "Directive Principles",
+        "Parliamentary System",
+        "Microeconomics",
+        "Macroeconomics",
+        "Supply and Demand",
+        "Inflation",
+        "GDP",
+        "Python Basics",
+        "Data Structures",
+        "Algorithms",
+        "OOP Concepts",
+        "Database SQL",
+        "Indian Geography",
+        "World Geography",
+        "Climate Change",
+        "Natural Resources",
+        "Plate Tectonics",
+        "Republic Day",
+        "Diwali",
+        "Holi",
+        "Christmas",
+        "Eid",
+        "English Grammar",
+        "Tenses",
+        "Parts of Speech",
+        "Active Passive Voice",
+        "Direct Indirect Speech",
+      ];
+
       // --- State ---
       const isLocal = ["localhost", "127.0.0.1"].includes(
         window.location.hostname,
@@ -482,8 +701,12 @@
       const generateBtn = document.getElementById("generateBtn");
       const cancelBtn = document.getElementById("cancelBtn");
       const topicInput = document.getElementById("topic");
+      const topicSuggestionsDiv = document.getElementById("topicSuggestions");
       const topicModifierInput = document.getElementById("topicModifier");
       const quizTitleInput = document.getElementById("quizTitle");
+      const subjectSelect = document.getElementById("subject");
+      const gradeLevelSelect = document.getElementById("gradeLevel");
+      const teacherNameInput = document.getElementById("teacherName");
       const difficultySelect = document.getElementById("difficulty");
       const numQuestionsInput = document.getElementById("numQuestions");
       const numOptionsInput = document.getElementById("numOptions");
@@ -503,6 +726,12 @@
       const uploadedFilesList = document.getElementById("uploadedFilesList");
       const uploadedCount = document.getElementById("uploadedCount");
       const clearAvoidBtn = document.getElementById("clearAvoidBtn");
+      const pdfFontSizeSelect = document.getElementById("pdfFontSize");
+      const pdfSpacingSelect = document.getElementById("pdfSpacing");
+      const pdfShowNumbersSelect = document.getElementById("pdfShowNumbers");
+      const pdfSettingsToggle = document.getElementById("pdfSettingsToggle");
+      const pdfSettingsContent = document.getElementById("pdfSettingsContent");
+      const pdfSettingsArrow = document.getElementById("pdfSettingsArrow");
 
       // --- Lazy-load pdf.js ---
       let pdfjsLoaded = false;
@@ -613,6 +842,49 @@
         updateUploadedFilesUI();
       });
 
+      // PDF settings toggle
+      pdfSettingsToggle.addEventListener("click", () => {
+        pdfSettingsContent.classList.toggle("hidden");
+        pdfSettingsArrow.style.transform =
+          pdfSettingsContent.classList.contains("hidden")
+            ? ""
+            : "rotate(180deg)";
+      });
+
+      // Topic suggestions
+      topicInput.addEventListener("input", () => {
+        const val = topicInput.value.toLowerCase().trim();
+        if (val.length < 2) {
+          topicSuggestionsDiv.classList.add("hidden");
+          return;
+        }
+        const matches = TOPIC_SUGGESTIONS.filter((t) =>
+          t.toLowerCase().includes(val),
+        ).slice(0, 6);
+        if (matches.length === 0) {
+          topicSuggestionsDiv.classList.add("hidden");
+          return;
+        }
+        topicSuggestionsDiv.innerHTML = "";
+        for (const m of matches) {
+          const item = document.createElement("div");
+          item.className =
+            "px-3 py-2 text-sm text-gray-300 hover:bg-gray-600 cursor-pointer";
+          item.textContent = m;
+          item.addEventListener("mousedown", (e) => {
+            e.preventDefault();
+            topicInput.value = m;
+            topicSuggestionsDiv.classList.add("hidden");
+            saveFormState();
+          });
+          topicSuggestionsDiv.appendChild(item);
+        }
+        topicSuggestionsDiv.classList.remove("hidden");
+      });
+      topicInput.addEventListener("blur", () => {
+        setTimeout(() => topicSuggestionsDiv.classList.add("hidden"), 150);
+      });
+
       // Enter key on topic input
       topicInput.addEventListener("keydown", (e) => {
         if (e.key === "Enter" && !isGenerating) handleGenerate();
@@ -654,6 +926,9 @@
         "topic",
         "topicModifier",
         "quizTitle",
+        "subject",
+        "gradeLevel",
+        "teacherName",
         "difficulty",
         "numQuestions",
         "numOptions",
@@ -677,9 +952,15 @@
           topic: topicInput.value,
           topicModifier: topicModifierInput.value,
           quizTitle: quizTitleInput.value,
+          subject: subjectSelect.value,
+          gradeLevel: gradeLevelSelect.value,
+          teacherName: teacherNameInput.value,
           difficulty: difficultySelect.value,
           numQuestions: numQuestionsInput.value,
           numOptions: numOptionsInput.value,
+          pdfFontSize: pdfFontSizeSelect.value,
+          pdfSpacing: pdfSpacingSelect.value,
+          pdfShowNumbers: pdfShowNumbersSelect.value,
         };
         localStorage.setItem(LS_PREFIX + "form", JSON.stringify(state));
       }
@@ -693,9 +974,16 @@
           if (state.topicModifier)
             topicModifierInput.value = state.topicModifier;
           if (state.quizTitle) quizTitleInput.value = state.quizTitle;
+          if (state.subject) subjectSelect.value = state.subject;
+          if (state.gradeLevel) gradeLevelSelect.value = state.gradeLevel;
+          if (state.teacherName) teacherNameInput.value = state.teacherName;
           if (state.difficulty) difficultySelect.value = state.difficulty;
           if (state.numQuestions) numQuestionsInput.value = state.numQuestions;
           if (state.numOptions) numOptionsInput.value = state.numOptions;
+          if (state.pdfFontSize) pdfFontSizeSelect.value = state.pdfFontSize;
+          if (state.pdfSpacing) pdfSpacingSelect.value = state.pdfSpacing;
+          if (state.pdfShowNumbers)
+            pdfShowNumbersSelect.value = state.pdfShowNumbers;
         } catch {
           /* ignore */
         }
@@ -1847,6 +2135,15 @@
         const margin = 20;
         const maxWidth = pageWidth - margin * 2;
 
+        // PDF layout settings
+        const fontSize = parseInt(pdfFontSizeSelect.value, 10) || 11;
+        const spacingMultiplier =
+          { compact: 0.7, normal: 1.0, wide: 1.4 }[pdfSpacingSelect.value] ||
+          1.0;
+        const showNumbers = pdfShowNumbersSelect.value === "true";
+        const lineHeight = Math.round(fontSize * spacingMultiplier);
+        const optionIndent = 5;
+
         function checkPageBreak(neededHeight) {
           if (y + neededHeight > pageHeight - 25) {
             doc.addPage();
@@ -1888,19 +2185,17 @@
         }
 
         doc.setFont("helvetica", "normal");
-        doc.setFontSize(11);
+        doc.setFontSize(fontSize);
 
         selected.forEach((q, i) => {
           // Question
-          const qText = doc.splitTextToSize(
-            `${i + 1}. ${q.question}`,
-            maxWidth,
-          );
-          checkPageBreak(qText.length * 6 + 4);
+          const prefix = showNumbers ? `${i + 1}. ` : "";
+          const qText = doc.splitTextToSize(`${prefix}${q.question}`, maxWidth);
+          checkPageBreak(qText.length * lineHeight + 4);
           doc.setFont("helvetica", "bold");
           doc.text(qText, margin, y);
           doc.setFont("helvetica", "normal");
-          y += qText.length * 6 + 3;
+          y += qText.length * lineHeight + 3;
 
           // Options
           q.options.forEach((opt, oi) => {
@@ -1908,36 +2203,36 @@
               `${String.fromCharCode(65 + oi)}) ${opt}`,
               maxWidth - 15,
             );
-            checkPageBreak(optText.length * 5.5);
+            checkPageBreak(optText.length * lineHeight);
             if (isStudent) {
               // Student sheet: circles for answers
-              doc.text("( ) " + optText[0], margin + 5, y);
+              doc.text("( ) " + optText[0], margin + optionIndent, y);
               for (let li = 1; li < optText.length; li++) {
-                y += 5;
-                doc.text("    " + optText[li], margin + 5, y);
+                y += lineHeight;
+                doc.text("    " + optText[li], margin + optionIndent, y);
               }
             } else {
-              doc.text(optText, margin + 5, y);
+              doc.text(optText, margin + optionIndent, y);
             }
-            y += optText.length * 5.5 + 1;
+            y += optText.length * lineHeight + 1;
           });
 
           // Answer (key mode)
           if (isKey) {
             y += 2;
             doc.setFont("helvetica", "bold");
-            doc.setFontSize(10);
+            doc.setFontSize(Math.max(fontSize - 1, 8));
             doc.setTextColor(0, 128, 0);
             const ansText = doc.splitTextToSize(
               `Answer: ${q.answer}`,
               maxWidth - 15,
             );
-            checkPageBreak(ansText.length * 5);
-            doc.text(ansText, margin + 5, y);
+            checkPageBreak(ansText.length * Math.max(lineHeight - 1, 6));
+            doc.text(ansText, margin + optionIndent, y);
             doc.setTextColor(0, 0, 0);
             doc.setFont("helvetica", "normal");
-            doc.setFontSize(10);
-            y += ansText.length * 5 + 3;
+            doc.setFontSize(Math.max(fontSize - 1, 8));
+            y += ansText.length * Math.max(lineHeight - 1, 6) + 3;
 
             // Explanation (key mode)
             if (q.explanation) {
@@ -1947,16 +2242,16 @@
                 `Explanation: ${q.explanation}`,
                 maxWidth - 15,
               );
-              checkPageBreak(explText.length * 5);
-              doc.text(explText, margin + 5, y);
+              checkPageBreak(explText.length * Math.max(lineHeight - 1, 6));
+              doc.text(explText, margin + optionIndent, y);
               doc.setTextColor(0, 0, 0);
               doc.setFont("helvetica", "normal");
-              y += explText.length * 5 + 2;
+              y += explText.length * Math.max(lineHeight - 1, 6) + 2;
             }
-            doc.setFontSize(11);
+            doc.setFontSize(fontSize);
           }
 
-          y += 8;
+          y += Math.round(8 * spacingMultiplier);
         });
 
         // Page numbers
@@ -2016,6 +2311,9 @@
           quizTitleInput.value.trim() || topicInput.value.trim() || "Quiz";
         const payload = {
           title,
+          subject: subjectSelect.value,
+          gradeLevel: gradeLevelSelect.value,
+          teacherName: teacherNameInput.value.trim(),
           difficulty: difficultySelect.value,
           generatedAt: new Date().toISOString(),
           questions: generatedData,
@@ -2047,6 +2345,9 @@
             rejectedQuestions = [];
             lastGeneratedTopic = "";
             if (data.title) quizTitleInput.value = data.title;
+            if (data.subject) subjectSelect.value = data.subject;
+            if (data.gradeLevel) gradeLevelSelect.value = data.gradeLevel;
+            if (data.teacherName) teacherNameInput.value = data.teacherName;
             if (data.difficulty) difficultySelect.value = data.difficulty;
             displayResults();
             resultsDiv.scrollIntoView({ behavior: "smooth", block: "start" });

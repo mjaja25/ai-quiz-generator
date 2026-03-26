@@ -12,35 +12,48 @@ AI-powered MCQ generator for teachers. Generate, review, edit, and export printa
 - Additional instructions field with quick presets (Exam-style, Conceptual, Numerical, Previous year, Tricky)
 - Topic suggestion chips for quick starts
 - Configurable quiz title for PDF header
+- Context-aware regeneration — when replacing a single question, the AI sees neighboring questions for coherence
+- Cumulative rejection tracking — each regenerate click adds the rejected question to the avoid list, so the AI never repeats it
+
+### Anti-Duplicate
+
+- Upload previously exported quizzes (JSON or PDF) as "questions to avoid"
+- Drag-and-drop or click-to-upload zone, supports multiple files
+- Uploaded questions are sent to the AI so it avoids generating similar questions
+- Chip-based file management with per-file question count and individual removal
+- pdf.js loaded lazily on first upload — doesn't slow down page load
 
 ### Review & Editing
 
 - Inline editing of questions, options, and answers
-- Answer dropdown selector (picks from available options)
-- Per-question regeneration (AI replaces a single question)
-- Regenerate all questions with same settings
+- Editable answer dropdown (picks from available options) plus free-text answer field
+- Per-question regenerate with partial DOM update (other cards' edits are preserved)
+- Regenerate all with same settings
 - Delete individual questions
 - Add blank questions manually
 - Drag-to-reorder questions
 - Select/deselect questions with live count ("3 of 5 selected")
+- Editable explanation field per question (collapsible, shown only in Q&A Key PDF)
 - Cancel button during generation
 
 ### Export
 
 - **Student Answer Sheet** — Questions with blank answer circles, name/date/score fields (for printing and handing out)
 - **Questions PDF** — Clean questions-only PDF
-- **Q&A Key PDF** — Questions with answer key (for teacher reference)
+- **Q&A Key PDF** — Questions with answers and explanations (for teacher reference)
 - **Copy as Text** — Plain text to clipboard
-- **Save/Load JSON** — Save quiz to file, load it back later
-- PDFs include date stamp, page numbers, and unique filenames
+- **Save/Load JSON** — Save quiz to file, load it back later (also compatible with the anti-duplicate upload)
+- PDFs include date stamp, page numbers, and unique filenames with topic name
 
-### Other
+### UX
 
 - Form inputs persist across browser sessions (localStorage)
 - Warning before closing tab with unsaved quiz
 - Enter key to generate from topic field
 - Timeout + retry on API calls
+- Tooltips for first-time users on all interactive elements
 - Mobile-responsive layout
+- Topic-aware rejection clearing — changing the topic resets the reject history
 
 ## Prerequisites
 
@@ -103,13 +116,13 @@ Alternatively, open `index.html` directly in a browser. You'll be prompted for y
 ├── index.html                    # Frontend (single page app)
 ├── netlify/
 │   └── functions/
-│       ├── generate-quiz.js      # Serverless API proxy
-│       └── generate-quiz.test.js # Tests
+│       └── generate-quiz.js      # Serverless API proxy
 ├── tests/
 │   └── generate-quiz.test.js     # Tests
 ├── netlify.toml                  # Netlify config
 ├── eslint.config.mjs             # ESLint config
 ├── .github/workflows/ci.yml      # GitHub Actions CI
 ├── .env.example                  # Env var template
+├── ROADMAP.md                    # Future upgrade plans
 └── .gitignore
 ```

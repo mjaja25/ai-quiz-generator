@@ -455,6 +455,7 @@
       let avoidQuestions = [];
       let uploadedFiles = [];
       let rejectedQuestions = [];
+      let lastGeneratedTopic = "";
 
       // --- DOM refs ---
       const generateBtn = document.getElementById("generateBtn");
@@ -1105,13 +1106,13 @@
           return;
         }
 
-        // If regenerating all, push current questions to rejected list
-        if (generatedData.length > 0) {
+        // If regenerating the same topic, push current questions to rejected list.
+        // If topic changed, clear rejected history — old topic is irrelevant.
+        if (generatedData.length > 0 && topic === lastGeneratedTopic) {
           for (const q of generatedData) {
             if (q && q.question) rejectedQuestions.push(q.question);
           }
         } else {
-          // Fresh generate: clear rejected history
           rejectedQuestions = [];
         }
 
@@ -1159,6 +1160,7 @@
           }
 
           saveFormState();
+          lastGeneratedTopic = topic;
           displayResults();
           resultsDiv.scrollIntoView({ behavior: "smooth", block: "start" });
         } catch (error) {
@@ -1214,8 +1216,10 @@
 
         // Push current question into rejected list
         const current = generatedData[index];
-        if (current && current.question) {
-          rejectedQuestions.push(current.question);
+        const rejectedQuestion =
+          current && current.question ? current.question : null;
+        if (rejectedQuestion) {
+          rejectedQuestions.push(rejectedQuestion);
         }
 
         try {
@@ -1227,8 +1231,11 @@
           }
         } catch (error) {
           showToast("Failed to regenerate: " + error.message);
-          // Remove the question we just pushed (regen failed)
-          rejectedQuestions.pop();
+          // Remove the specific question we pushed (not the last one)
+          if (rejectedQuestion) {
+            const idx = rejectedQuestions.lastIndexOf(rejectedQuestion);
+            if (idx !== -1) rejectedQuestions.splice(idx, 1);
+          }
           if (spinner) spinner.classList.add("hidden");
           if (regenBtn) regenBtn.disabled = false;
         }
@@ -1868,6 +1875,7 @@
               throw new Error("Invalid format: missing questions array.");
             generatedData = data.questions;
             rejectedQuestions = [];
+            lastGeneratedTopic = "";
             if (data.title) quizTitleInput.value = data.title;
             if (data.difficulty) difficultySelect.value = data.difficulty;
             displayResults();

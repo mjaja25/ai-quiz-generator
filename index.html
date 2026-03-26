@@ -79,17 +79,55 @@
       }
     </style>
   </head>
-  <body class="bg-gray-900 text-white min-h-screen p-4">
+  <body
+    class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white min-h-screen p-4"
+  >
     <div class="w-full max-w-4xl mx-auto py-8">
       <div
-        class="bg-gray-800 shadow-2xl rounded-2xl p-4 sm:p-6 md:p-10 border border-gray-700"
+        class="bg-white dark:bg-gray-800 shadow-2xl rounded-2xl p-4 sm:p-6 md:p-10 border border-gray-200 dark:border-gray-700"
       >
         <!-- Header -->
-        <div class="text-center mb-8">
-          <h1 class="text-3xl md:text-4xl font-bold text-white mb-2">
+        <div class="relative text-center mb-8">
+          <button
+            id="themeToggle"
+            title="Toggle light/dark mode"
+            class="absolute top-0 right-0 p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+          >
+            <svg
+              id="themeIconSun"
+              class="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+              ></path>
+            </svg>
+            <svg
+              id="themeIconMoon"
+              class="w-5 h-5 hidden"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+              ></path>
+            </svg>
+          </button>
+          <h1
+            class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-2"
+          >
             Dream Centre MCQ Generator
           </h1>
-          <p class="text-gray-400">
+          <p class="text-gray-400 dark:text-gray-500">
             AI-powered quiz creation tool for teachers.
           </p>
         </div>
@@ -100,47 +138,47 @@
           <div>
             <label
               for="topic"
-              class="block text-sm font-medium text-gray-300 mb-2"
+              class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
               >Topic</label
             >
             <input
               type="text"
               id="topic"
               maxlength="200"
-              class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              class="w-full bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none"
               placeholder="e.g., Photosynthesis"
             />
             <div
               id="topicSuggestions"
-              class="hidden mt-1 bg-gray-700 border border-gray-600 rounded-lg overflow-hidden z-10"
+              class="hidden mt-1 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden z-10"
             ></div>
             <div class="flex flex-wrap gap-2 mt-2">
               <span
-                class="chip bg-gray-700 text-gray-300"
+                class="chip bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
                 data-topic="Photosynthesis"
                 title="Click to auto-fill the topic"
                 >Photosynthesis</span
               >
               <span
-                class="chip bg-gray-700 text-gray-300"
+                class="chip bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
                 data-topic="World War II"
                 title="Click to auto-fill the topic"
                 >World War II</span
               >
               <span
-                class="chip bg-gray-700 text-gray-300"
+                class="chip bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
                 data-topic="Quadratic Equations"
                 title="Click to auto-fill the topic"
                 >Quadratic Equations</span
               >
               <span
-                class="chip bg-gray-700 text-gray-300"
+                class="chip bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
                 data-topic="Indian Constitution"
                 title="Click to auto-fill the topic"
                 >Indian Constitution</span
               >
               <span
-                class="chip bg-gray-700 text-gray-300"
+                class="chip bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
                 data-topic="Python Basics"
                 title="Click to auto-fill the topic"
                 >Python Basics</span
@@ -152,19 +190,21 @@
           <div>
             <label
               for="topicModifier"
-              class="block text-sm font-medium text-gray-300 mb-2"
+              class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
             >
               Additional Instructions
-              <span class="text-gray-500 font-normal ml-1">(Optional)</span>
+              <span class="text-gray-400 dark:text-gray-500 font-normal ml-1"
+                >(Optional)</span
+              >
             </label>
             <input
               type="text"
               id="topicModifier"
               maxlength="300"
-              class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              class="w-full bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none"
               placeholder="e.g., Focus on cellular respiration, use NCERT textbook style"
             />
-            <p class="text-xs text-gray-500 mt-1">
+            <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">
               Guide the AI with specific instructions about question style,
               focus areas, or patterns.
             </p>
@@ -206,16 +246,18 @@
           <div>
             <label
               for="quizTitle"
-              class="block text-sm font-medium text-gray-300 mb-2"
+              class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
             >
               Quiz Title
-              <span class="text-gray-500 font-normal">(for PDF header)</span>
+              <span class="text-gray-400 dark:text-gray-500 font-normal"
+                >(for PDF header)</span
+              >
             </label>
             <input
               type="text"
               id="quizTitle"
               maxlength="100"
-              class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              class="w-full bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none"
               placeholder="Leave blank to use topic name"
             />
           </div>
@@ -225,12 +267,12 @@
             <div>
               <label
                 for="subject"
-                class="block text-sm font-medium text-gray-300 mb-2"
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
                 >Subject</label
               >
               <select
                 id="subject"
-                class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                class="w-full bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none"
               >
                 <option value="">-- select --</option>
                 <option value="Mathematics">Mathematics</option>
@@ -251,12 +293,12 @@
             <div>
               <label
                 for="gradeLevel"
-                class="block text-sm font-medium text-gray-300 mb-2"
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
                 >Grade Level</label
               >
               <select
                 id="gradeLevel"
-                class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                class="w-full bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none"
               >
                 <option value="">-- select --</option>
                 <option value="6">Class 6</option>
@@ -271,14 +313,14 @@
             <div>
               <label
                 for="teacherName"
-                class="block text-sm font-medium text-gray-300 mb-2"
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
                 >Teacher Name</label
               >
               <input
                 type="text"
                 id="teacherName"
                 maxlength="100"
-                class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                class="w-full bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 placeholder="Optional"
               />
             </div>
@@ -289,12 +331,12 @@
             <div>
               <label
                 for="difficulty"
-                class="block text-sm font-medium text-gray-300 mb-2"
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
                 >Difficulty</label
               >
               <select
                 id="difficulty"
-                class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                class="w-full bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none"
               >
                 <option value="easy">Easy</option>
                 <option value="medium" selected>Medium</option>
@@ -304,13 +346,13 @@
             <div>
               <label
                 for="numQuestions"
-                class="block text-sm font-medium text-gray-300 mb-2"
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
                 >Questions</label
               >
               <input
                 type="number"
                 id="numQuestions"
-                class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3"
+                class="w-full bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg p-3"
                 value="5"
                 min="1"
                 max="20"
@@ -319,13 +361,13 @@
             <div>
               <label
                 for="numOptions"
-                class="block text-sm font-medium text-gray-300 mb-2"
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
                 >Options</label
               >
               <input
                 type="number"
                 id="numOptions"
-                class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3"
+                class="w-full bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg p-3"
                 value="4"
                 min="2"
                 max="6"
@@ -334,11 +376,13 @@
           </div>
 
           <!-- PDF Settings (collapsible) -->
-          <div class="border border-gray-600 rounded-lg overflow-hidden">
+          <div
+            class="border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden"
+          >
             <button
               type="button"
               id="pdfSettingsToggle"
-              class="w-full flex items-center justify-between p-3 text-sm font-medium text-gray-300 hover:bg-gray-700/50"
+              class="w-full flex items-center justify-between p-3 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:bg-gray-700/50"
             >
               <span>PDF Settings</span>
               <svg
@@ -361,12 +405,12 @@
                 <div>
                   <label
                     for="pdfFontSize"
-                    class="block text-sm font-medium text-gray-300 mb-2"
+                    class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
                     >Font Size</label
                   >
                   <select
                     id="pdfFontSize"
-                    class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    class="w-full bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   >
                     <option value="9">Small (9pt)</option>
                     <option value="11" selected>Medium (11pt)</option>
@@ -376,12 +420,12 @@
                 <div>
                   <label
                     for="pdfSpacing"
-                    class="block text-sm font-medium text-gray-300 mb-2"
+                    class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
                     >Line Spacing</label
                   >
                   <select
                     id="pdfSpacing"
-                    class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    class="w-full bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   >
                     <option value="compact">Compact</option>
                     <option value="normal" selected>Normal</option>
@@ -391,12 +435,12 @@
                 <div>
                   <label
                     for="pdfShowNumbers"
-                    class="block text-sm font-medium text-gray-300 mb-2"
+                    class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
                     >Question Numbers</label
                   >
                   <select
                     id="pdfShowNumbers"
-                    class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    class="w-full bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   >
                     <option value="true" selected>Show</option>
                     <option value="false">Hide</option>
@@ -407,11 +451,14 @@
           </div>
 
           <!-- Previous Questions Upload (anti-duplicate) -->
-          <div class="border border-gray-600 rounded-lg p-3">
+          <div
+            class="border border-gray-300 dark:border-gray-600 rounded-lg p-3"
+          >
             <div class="flex items-center justify-between mb-2">
-              <label class="text-sm font-medium text-gray-300"
+              <label
+                class="text-sm font-medium text-gray-700 dark:text-gray-300"
                 >Previous Questions
-                <span class="text-gray-500 font-normal"
+                <span class="text-gray-400 dark:text-gray-500 font-normal"
                   >(to avoid duplicates)</span
                 ></label
               >
@@ -425,7 +472,7 @@
             <div
               id="dropzone"
               title="Upload past quiz files (JSON or PDF). The AI will avoid generating similar questions."
-              class="border-2 border-dashed border-gray-600 hover:border-blue-500 rounded-lg p-4 text-center cursor-pointer transition-colors"
+              class="border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-blue-500 rounded-lg p-4 text-center cursor-pointer transition-colors"
             >
               <input
                 type="file"
@@ -434,24 +481,24 @@
                 accept=".json,.pdf"
                 class="hidden"
               />
-              <p class="text-sm text-gray-400">
+              <p class="text-sm text-gray-400 dark:text-gray-500">
                 Drag & drop quiz files here, or
                 <span class="text-blue-400 underline">click to upload</span>
               </p>
-              <p class="text-xs text-gray-500 mt-1">
+              <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">
                 Accepts JSON and PDF exports
               </p>
             </div>
             <div id="uploadedFilesList" class="flex flex-wrap gap-2 mt-2"></div>
             <div
               id="uploadedCount"
-              class="hidden text-xs text-gray-400 mt-2"
+              class="hidden text-xs text-gray-400 dark:text-gray-500 mt-2"
             ></div>
           </div>
 
           <button
             id="generateBtn"
-            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition transform hover:scale-[1.02]"
+            class="w-full bg-blue-600 hover:bg-blue-700 text-gray-900 dark:text-white font-bold py-3 px-4 rounded-lg transition transform hover:scale-[1.02]"
           >
             Generate Questions
           </button>
@@ -460,7 +507,10 @@
         <!-- Loader -->
         <div id="loader" class="flex flex-col items-center my-8 hidden">
           <div class="loader"></div>
-          <p id="loadingStatus" class="mt-3 text-sm text-gray-400">
+          <p
+            id="loadingStatus"
+            class="mt-3 text-sm text-gray-400 dark:text-gray-500"
+          >
             Generating questions...
           </p>
           <button
@@ -481,7 +531,7 @@
         <div id="results" class="hidden">
           <div
             id="questionsContainer"
-            class="bg-gray-900/50 p-4 sm:p-6 rounded-lg mb-6 border border-gray-700"
+            class="bg-gray-100/80 dark:bg-gray-900/50 p-4 sm:p-6 rounded-lg mb-6 border border-gray-200 dark:border-gray-700"
           >
             <div
               class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4"
@@ -493,14 +543,14 @@
                 <span
                   id="selectedCount"
                   title="Only selected questions are exported. Uncheck to exclude."
-                  class="text-sm text-gray-400 bg-gray-700 px-3 py-1 rounded-full whitespace-nowrap"
+                  class="text-sm text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full whitespace-nowrap"
                 ></span>
               </div>
               <div class="flex flex-wrap w-full sm:w-auto gap-2">
                 <button
                   id="regenerateAllBtn"
                   title="Generate all new questions. Current questions will be avoided."
-                  class="flex-1 sm:flex-none justify-center text-sm bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg flex items-center gap-2"
+                  class="flex-1 sm:flex-none justify-center text-sm bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:bg-gray-600 px-4 py-2 rounded-lg flex items-center gap-2"
                 >
                   <svg
                     class="w-4 h-4"
@@ -519,7 +569,7 @@
                 </button>
                 <button
                   id="toggleSelectAllBtn"
-                  class="flex-1 sm:flex-none justify-center text-sm bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg whitespace-nowrap"
+                  class="flex-1 sm:flex-none justify-center text-sm bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:bg-gray-600 px-4 py-2 rounded-lg whitespace-nowrap"
                 >
                   Deselect All
                 </button>
@@ -534,7 +584,7 @@
             <div id="questionsList" class="space-y-4"></div>
             <button
               id="addQuestionBtn"
-              class="mt-4 w-full border-2 border-dashed border-gray-600 hover:border-gray-500 text-gray-400 hover:text-gray-300 py-3 rounded-lg transition"
+              class="mt-4 w-full border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-gray-500 text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:text-gray-300 py-3 rounded-lg transition"
             >
               + Add Question
             </button>
@@ -544,54 +594,54 @@
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <button
               id="exportStudentSheetBtn"
-              class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3 px-4 rounded-lg transition text-sm"
+              class="bg-yellow-600 hover:bg-yellow-700 text-gray-900 dark:text-white font-bold py-3 px-4 rounded-lg transition text-sm"
             >
               Export Student Sheet (PDF)
             </button>
             <button
               id="exportQuestionsBtn"
-              class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition text-sm"
+              class="bg-green-600 hover:bg-green-700 text-gray-900 dark:text-white font-bold py-3 px-4 rounded-lg transition text-sm"
             >
               Export Questions (PDF)
             </button>
             <button
               id="exportAnswersBtn"
-              class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition text-sm"
+              class="bg-indigo-600 hover:bg-indigo-700 text-gray-900 dark:text-white font-bold py-3 px-4 rounded-lg transition text-sm"
             >
               Export Q&A Key (PDF)
             </button>
             <button
               id="exportWordStudentBtn"
-              class="bg-yellow-600/50 hover:bg-yellow-600 text-white font-bold py-3 px-4 rounded-lg transition text-sm"
+              class="bg-yellow-600/50 hover:bg-yellow-600 text-gray-900 dark:text-white font-bold py-3 px-4 rounded-lg transition text-sm"
             >
               Export Student Sheet (Word)
             </button>
             <button
               id="exportWordQuestionsBtn"
-              class="bg-green-600/50 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg transition text-sm"
+              class="bg-green-600/50 hover:bg-green-600 text-gray-900 dark:text-white font-bold py-3 px-4 rounded-lg transition text-sm"
             >
               Export Questions (Word)
             </button>
             <button
               id="exportWordKeyBtn"
-              class="bg-indigo-600/50 hover:bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg transition text-sm"
+              class="bg-indigo-600/50 hover:bg-indigo-600 text-gray-900 dark:text-white font-bold py-3 px-4 rounded-lg transition text-sm"
             >
               Export Q&A Key (Word)
             </button>
             <button
               id="copyTextBtn"
-              class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-3 px-4 rounded-lg transition text-sm"
+              class="bg-gray-200 dark:bg-gray-600 hover:bg-gray-500 text-gray-900 dark:text-white font-bold py-3 px-4 rounded-lg transition text-sm"
             >
               Copy as Text
             </button>
             <button
               id="exportJsonBtn"
-              class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-3 px-4 rounded-lg transition text-sm"
+              class="bg-gray-200 dark:bg-gray-600 hover:bg-gray-500 text-gray-900 dark:text-white font-bold py-3 px-4 rounded-lg transition text-sm"
             >
               Save Quiz (JSON)
             </button>
             <label
-              class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-3 px-4 rounded-lg transition text-sm text-center cursor-pointer"
+              class="bg-gray-200 dark:bg-gray-600 hover:bg-gray-500 text-gray-900 dark:text-white font-bold py-3 px-4 rounded-lg transition text-sm text-center cursor-pointer"
             >
               Load Quiz (JSON)
               <input
@@ -604,7 +654,7 @@
           </div>
         </div>
       </div>
-      <footer class="text-center text-gray-500 mt-6 text-sm">
+      <footer class="text-center text-gray-400 dark:text-gray-500 mt-6 text-sm">
         A custom quiz generator for
         <span class="text-blue-400 font-semibold">Dream Centre</span>
       </footer>
@@ -752,6 +802,36 @@
       const pdfSettingsContent = document.getElementById("pdfSettingsContent");
       const pdfSettingsArrow = document.getElementById("pdfSettingsArrow");
 
+      // --- Theme toggle ---
+      const themeToggle = document.getElementById("themeToggle");
+      const themeIconSun = document.getElementById("themeIconSun");
+      const themeIconMoon = document.getElementById("themeIconMoon");
+
+      function applyTheme(theme) {
+        if (theme === "dark") {
+          document.documentElement.classList.add("dark");
+          themeIconSun.classList.add("hidden");
+          themeIconMoon.classList.remove("hidden");
+        } else {
+          document.documentElement.classList.remove("dark");
+          themeIconSun.classList.remove("hidden");
+          themeIconMoon.classList.add("hidden");
+        }
+      }
+
+      function toggleTheme() {
+        const current = document.documentElement.classList.contains("dark")
+          ? "dark"
+          : "light";
+        const next = current === "dark" ? "light" : "dark";
+        localStorage.setItem(LS_PREFIX + "theme", next);
+        applyTheme(next);
+      }
+
+      themeToggle.addEventListener("click", toggleTheme);
+      // Load saved theme
+      applyTheme(localStorage.getItem(LS_PREFIX + "theme") || "dark");
+
       // --- Lazy-load pdf.js ---
       let pdfjsLoaded = false;
       function ensurePDFJS() {
@@ -897,7 +977,7 @@
         for (const m of matches) {
           const item = document.createElement("div");
           item.className =
-            "px-3 py-2 text-sm text-gray-300 hover:bg-gray-600 cursor-pointer";
+            "px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:bg-gray-600 cursor-pointer";
           item.textContent = m;
           item.addEventListener("mousedown", (e) => {
             e.preventDefault();
@@ -1023,7 +1103,7 @@
       function showToast(message, actionLabel, actionFn) {
         const toast = document.createElement("div");
         toast.className =
-          "toast bg-gray-700 text-white px-4 py-2 rounded-lg shadow-lg text-sm flex items-center gap-3";
+          "toast bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white px-4 py-2 rounded-lg shadow-lg text-sm flex items-center gap-3";
         const msg = document.createElement("span");
         msg.textContent = message;
         toast.appendChild(msg);
@@ -1772,21 +1852,21 @@
 
           const card = document.createElement("div");
           card.className =
-            "question-card bg-gray-800 rounded-lg border border-gray-700 overflow-hidden";
+            "question-card bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden";
           card.draggable = true;
           card.dataset.index = index;
 
           // Header bar
           const header = document.createElement("div");
           header.className =
-            "flex items-center justify-between gap-2 px-3 py-2 sm:px-4 bg-gray-700/50 border-b border-gray-700";
+            "flex items-center justify-between gap-2 px-3 py-2 sm:px-4 bg-gray-100 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700";
 
           const headerLeft = document.createElement("div");
           headerLeft.className = "flex items-center gap-2";
 
           const dragHandle = document.createElement("span");
           dragHandle.className =
-            "drag-handle text-gray-500 hover:text-gray-300 cursor-grab text-lg leading-none select-none";
+            "drag-handle text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:text-gray-300 cursor-grab text-lg leading-none select-none";
           dragHandle.textContent = "\u2630";
           dragHandle.title = "Drag to reorder";
           headerLeft.appendChild(dragHandle);
@@ -1796,12 +1876,13 @@
           checkbox.checked = true;
           checkbox.dataset.index = index;
           checkbox.className =
-            "q-check w-4 h-4 rounded bg-gray-700 border-gray-600 text-blue-500";
+            "q-check w-4 h-4 rounded bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-blue-500";
           checkbox.addEventListener("change", updateSelectedCount);
           headerLeft.appendChild(checkbox);
 
           const qNum = document.createElement("span");
-          qNum.className = "text-sm font-semibold text-gray-300";
+          qNum.className =
+            "text-sm font-semibold text-gray-700 dark:text-gray-300";
           qNum.textContent = `Q${index + 1}`;
           headerLeft.appendChild(qNum);
           header.appendChild(headerLeft);
@@ -1812,7 +1893,7 @@
 
           const regenBtn = document.createElement("button");
           regenBtn.className =
-            "regen-btn p-1 text-gray-400 hover:text-blue-400 rounded transition";
+            "regen-btn p-1 text-gray-400 dark:text-gray-500 hover:text-blue-400 rounded transition";
           regenBtn.title =
             "Generate a replacement. Previous attempts are automatically avoided.";
           regenBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>`;
@@ -1826,7 +1907,7 @@
 
           const delBtn = document.createElement("button");
           delBtn.className =
-            "p-1 text-gray-400 hover:text-red-400 rounded transition";
+            "p-1 text-gray-400 dark:text-gray-500 hover:text-red-400 rounded transition";
           delBtn.title = "Delete";
           delBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>`;
           delBtn.addEventListener("click", () => deleteQuestion(index));
@@ -1842,7 +1923,7 @@
           // Question textarea
           const qTextarea = document.createElement("textarea");
           qTextarea.className =
-            "question-input w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none box-border";
+            "question-input w-full bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none box-border";
           qTextarea.value = norm.question;
           qTextarea.placeholder = "Enter question text...";
           qTextarea.addEventListener("input", () => {
@@ -1868,13 +1949,13 @@
 
             const letter = document.createElement("span");
             letter.className =
-              "text-sm text-gray-400 font-medium w-5 text-right flex-shrink-0";
+              "text-sm text-gray-400 dark:text-gray-500 font-medium w-5 text-right flex-shrink-0";
             letter.textContent = `${String.fromCharCode(65 + oi)})`;
             optRow.appendChild(letter);
 
             const optInput = document.createElement("textarea");
             optInput.className =
-              "auto-resize flex-1 min-w-0 bg-gray-700 border border-gray-600 text-white rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none box-border leading-tight";
+              "auto-resize flex-1 min-w-0 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none box-border leading-tight";
             optInput.rows = 1;
             optInput.value = opt;
             optInput.placeholder = `Option ${String.fromCharCode(65 + oi)}`;
@@ -1920,13 +2001,13 @@
 
           const answerSelect = document.createElement("select");
           answerSelect.className =
-            "flex-1 sm:flex-none sm:w-28 bg-gray-700 border border-gray-600 text-green-400 rounded-lg p-2 text-xs font-bold focus:ring-2 focus:ring-green-500 focus:outline-none";
+            "flex-1 sm:flex-none sm:w-28 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-green-400 rounded-lg p-2 text-xs font-bold focus:ring-2 focus:ring-green-500 focus:outline-none";
           answerSelect.dataset.questionIndex = index;
           selectContainer.appendChild(answerSelect);
 
           const answerTextarea = document.createElement("textarea");
           answerTextarea.className =
-            "auto-resize w-full sm:flex-1 bg-gray-700 border border-gray-600 text-green-400 rounded-lg p-2 text-sm font-bold focus:ring-2 focus:ring-green-500 focus:outline-none box-border leading-tight";
+            "auto-resize w-full sm:flex-1 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-green-400 rounded-lg p-2 text-sm font-bold focus:ring-2 focus:ring-green-500 focus:outline-none box-border leading-tight";
           answerTextarea.rows = 1;
           answerTextarea.value = norm.answer || "";
           answerTextarea.placeholder = "Correct Answer text...";
@@ -1964,7 +2045,7 @@
           explToggle.type = "button";
           explToggle.className =
             "text-xs text-blue-400 hover:text-blue-300 mt-1 flex items-center gap-1";
-          explToggle.innerHTML = `<svg class="w-3 h-3 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg> Explanation <span class="text-gray-500">(for answer key)</span>`;
+          explToggle.innerHTML = `<svg class="w-3 h-3 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg> Explanation <span class="text-gray-400 dark:text-gray-500">(for answer key)</span>`;
           body.appendChild(explToggle);
 
           const explContainer = document.createElement("div");
@@ -1972,7 +2053,7 @@
 
           const explTextarea = document.createElement("textarea");
           explTextarea.className =
-            "auto-resize w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none box-border mt-1";
+            "auto-resize w-full bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none box-border mt-1";
           explTextarea.rows = 1;
           explTextarea.value = norm.explanation || "";
           explTextarea.placeholder =
@@ -2522,23 +2603,15 @@
       function exportJSON() {
         if (generatedData.length === 0)
           return showError("No questions to save.");
-        const title =
-          quizTitleInput.value.trim() || topicInput.value.trim() || "Quiz";
-        const payload = {
-          title,
-          subject: subjectSelect.value,
-          gradeLevel: gradeLevelSelect.value,
-          teacherName: teacherNameInput.value.trim(),
-          difficulty: difficultySelect.value,
-          generatedAt: new Date().toISOString(),
-          questions: generatedData,
-        };
+        const payload = generatedData;
         const blob = new Blob([JSON.stringify(payload, null, 2)], {
           type: "application/json",
         });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
+        const title =
+          quizTitleInput.value.trim() || topicInput.value.trim() || "Quiz";
         const safeName = title.replace(/[^a-zA-Z0-9]/g, "_").substring(0, 30);
         a.download = `DreamCentre_${safeName}_${new Date().toISOString().split("T")[0]}.json`;
         a.click();

@@ -6,6 +6,7 @@
     <title>Dream Centre | AI MCQ Generator</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.9.155/pdf.min.js"></script>
     <style>
       @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
       body {
@@ -70,9 +71,10 @@
           opacity: 0;
         }
       }
-      textarea.question-input {
+      textarea.question-input,
+      textarea.auto-resize {
         resize: none;
-        overflow-y: auto;
+        overflow: hidden;
         min-height: 44px;
       }
     </style>
@@ -253,6 +255,48 @@
             </div>
           </div>
 
+          <!-- Previous Questions Upload (anti-duplicate) -->
+          <div class="border border-gray-600 rounded-lg p-3">
+            <div class="flex items-center justify-between mb-2">
+              <label class="text-sm font-medium text-gray-300"
+                >Previous Questions
+                <span class="text-gray-500 font-normal"
+                  >(to avoid duplicates)</span
+                ></label
+              >
+              <button
+                id="clearAvoidBtn"
+                class="hidden text-xs text-red-400 hover:text-red-300"
+              >
+                Clear all
+              </button>
+            </div>
+            <div
+              id="dropzone"
+              class="border-2 border-dashed border-gray-600 hover:border-blue-500 rounded-lg p-4 text-center cursor-pointer transition-colors"
+            >
+              <input
+                type="file"
+                id="avoidFileInput"
+                multiple
+                accept=".json,.pdf"
+                class="hidden"
+              />
+              <p class="text-sm text-gray-400">
+                Drag & drop quiz files here, or
+                <span class="text-blue-400 underline">click to upload</span>
+              </p>
+              <p class="text-xs text-gray-500 mt-1">
+                Accepts JSON and PDF exports
+              </p>
+            </div>
+            <div id="uploadedFilesList" class="flex flex-wrap gap-2 mt-2"></div>
+            <div
+              id="uploadedCount"
+              class="hidden text-xs text-gray-400 mt-2"
+            ></div>
+          </div>
+
           <button
             id="generateBtn"
             class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition transform hover:scale-[1.02]"
@@ -407,6 +451,12 @@
       let generatedData = [];
       let abortController = null;
       let isGenerating = false;
+      let avoidQuestions = [];
+      let uploadedFiles = [];
+      );
+      let generatedData = [];
+      let abortController = null;
+      let isGenerating = false;
 
       // --- DOM refs ---
       const generateBtn = document.getElementById("generateBtn");
@@ -427,6 +477,17 @@
       const addQuestionBtn = document.getElementById("addQuestionBtn");
       const selectedCountSpan = document.getElementById("selectedCount");
       const toastContainer = document.getElementById("toastContainer");
+      const dropzone = document.getElementById("dropzone");
+      const avoidFileInput = document.getElementById("avoidFileInput");
+      const uploadedFilesList = document.getElementById("uploadedFilesList");
+      const uploadedCount = document.getElementById("uploadedCount");
+      const clearAvoidBtn = document.getElementById("clearAvoidBtn");
+
+      // --- PDF.js worker setup ---
+      if (window.pdfjsLib) {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+          "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.9.155/pdf.worker.min.js";
+      }
 
       // --- Topic chip listeners ---
       document.querySelectorAll("[data-topic]").forEach((chip) => {
@@ -473,6 +534,34 @@
       toggleSelectAllBtn.addEventListener("click", toggleSelectAll);
       regenerateAllBtn.addEventListener("click", handleGenerate);
       addQuestionBtn.addEventListener("click", addBlankQuestion);
+
+      // Dropzone: click to upload
+      dropzone.addEventListener("click", () => avoidFileInput.click());
+      avoidFileInput.addEventListener("change", (e) => {
+        if (e.target.files.length) handleUpload(e.target.files);
+        e.target.value = "";
+      });
+
+      // Dropzone: drag and drop
+      dropzone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        dropzone.classList.add("border-blue-500", "bg-blue-900/20");
+      });
+      dropzone.addEventListener("dragleave", () => {
+        dropzone.classList.remove("border-blue-500", "bg-blue-900/20");
+      });
+      dropzone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        dropzone.classList.remove("border-blue-500", "bg-blue-900/20");
+        if (e.dataTransfer.files.length) handleUpload(e.dataTransfer.files);
+      });
+
+      // Clear avoid questions
+      clearAvoidBtn.addEventListener("click", () => {
+        avoidQuestions = [];
+        uploadedFiles = [];
+        updateUploadedFilesUI();
+      });
 
       // Enter key on topic input
       topicInput.addEventListener("keydown", (e) => {
@@ -560,6 +649,91 @@
         );
       }
 
+      // --- Upload: Previous Questions (anti-duplicate) ---
+      function parseJSONQuestions(text) {
+        const data = JSON.parse(text);
+        const questions = Array.isArray(data) ? data : (data.questions || []);
+        return questions
+          .map((q) => (typeof q.question === "string" ? q.question.trim() : ""))
+          .filter((q) => q.length > 0);
+      }
+
+      async function parsePDFQuestions(file) {
+        if (!window.pdfjsLib) throw new Error("PDF library not loaded");
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        let allText = "";
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          allText += content.items.map((item) => item.str).join(" ") + "\n";
+        }
+        // Match lines like "1. What is...?" or "1) What is...?"
+        const matches = allText.match(/^\d+[\.\)]\s+.+(?:\?)$/gm) || [];
+        return matches.map((m) => m.replace(/^\d+[\.\)]\s+/, "").trim());
+      }
+
+      async function handleUpload(files) {
+        for (const file of files) {
+          try {
+            let questions = [];
+            if (file.name.endsWith(".json")) {
+              const text = await file.text();
+              questions = parseJSONQuestions(text);
+            } else if (file.name.endsWith(".pdf")) {
+              questions = await parsePDFQuestions(file);
+            } else {
+              showToast(`Unsupported file: ${file.name}`);
+              continue;
+            }
+            if (questions.length > 0) {
+              // Deduplicate against existing
+              const existing = new Set(avoidQuestions.map((q) => q.toLowerCase()));
+              const newQs = questions.filter((q) => !existing.has(q.toLowerCase()));
+              avoidQuestions.push(...newQs);
+              uploadedFiles.push({ name: file.name, questionCount: questions.length });
+              updateUploadedFilesUI();
+              showToast(`Added ${newQs.length} questions from ${file.name}`);
+            } else {
+              showToast(`No questions found in ${file.name}`);
+            }
+          } catch (err) {
+            console.error("Upload error:", err);
+            showToast(`Failed to parse ${file.name}: ${err.message}`);
+          }
+        }
+      }
+
+      function updateUploadedFilesUI() {
+        // Update file chips
+        uploadedFilesList.innerHTML = "";
+        uploadedFiles.forEach((file, i) => {
+          const chip = document.createElement("span");
+          chip.className = "inline-flex items-center gap-1 bg-blue-900/40 text-blue-300 text-xs px-2 py-1 rounded-full border border-blue-800";
+          chip.innerHTML = `${escapeAttr(file.name)} (${file.questionCount}) <button class="hover:text-red-400 ml-1" data-index="${i}">&times;</button>`;
+          uploadedFilesList.appendChild(chip);
+        });
+        // Chip remove handlers
+        uploadedFilesList.querySelectorAll("button[data-index]").forEach((btn) => {
+          btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const idx = parseInt(btn.dataset.index, 10);
+            uploadedFiles.splice(idx, 1);
+            // Rebuild avoidQuestions (not perfect but simple)
+            updateUploadedFilesUI();
+          });
+        });
+        // Update count badge
+        if (avoidQuestions.length > 0) {
+          uploadedCount.classList.remove("hidden");
+          uploadedCount.textContent = `${uploadedFiles.length} file${uploadedFiles.length !== 1 ? "s" : ""}, ${avoidQuestions.length} question${avoidQuestions.length !== 1 ? "s" : ""} loaded to avoid`;
+          clearAvoidBtn.classList.remove("hidden");
+        } else {
+          uploadedCount.classList.add("hidden");
+          clearAvoidBtn.classList.add("hidden");
+        }
+      }
+
       // --- API ---
       async function fetchWithTimeout(url, options, timeoutMs) {
         abortController = new AbortController();
@@ -608,6 +782,19 @@
         prompt += ` Each question must have exactly ${numOpts} options.`;
         prompt += ` Include a brief "explanation" for each answer explaining why it is correct.`;
         prompt += ` Format strictly as JSON: [{ "question": "string", "options": [${optionsSchema}], "answer": "correct_option_text", "explanation": "brief explanation of the correct answer" }]`;
+
+        // Append avoid list (anti-duplicate)
+        if (avoidQuestions.length > 0) {
+          const maxAvoidChars = 3000;
+          let accumulated = "";
+          const avoided = [];
+          for (const q of avoidQuestions) {
+            if (accumulated.length + q.length + 2 > maxAvoidChars) break;
+            avoided.push(q);
+            accumulated += q + "\n";
+          }
+          prompt += `\n\nIMPORTANT: Do NOT generate questions that are similar to or duplicates of these previously used questions:\n${avoided.join("\n")}`;
+        }
 
         return prompt;
       }
@@ -919,14 +1106,15 @@
             letter.textContent = `${String.fromCharCode(65 + oi)})`;
             optRow.appendChild(letter);
 
-            const optInput = document.createElement("input");
-            optInput.type = "text";
+            const optInput = document.createElement("textarea");
             optInput.className =
-              "flex-1 min-w-0 bg-gray-700 border border-gray-600 text-white rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none box-border";
+              "auto-resize flex-1 min-w-0 bg-gray-700 border border-gray-600 text-white rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none box-border leading-tight";
+            optInput.rows = 1;
             optInput.value = opt;
             optInput.placeholder = `Option ${String.fromCharCode(65 + oi)}`;
             optInput.addEventListener("input", () => {
               generatedData[index].options[oi] = optInput.value;
+              autoResize(optInput);
               updateAnswerDropdown(answerSelect, generatedData[index]);
             });
             optRow.appendChild(optInput);
@@ -935,22 +1123,42 @@
 
           // Answer dropdown
           const answerRow = document.createElement("div");
-          answerRow.className = "flex items-center gap-2 pt-1";
+          answerRow.className =
+            "flex items-start gap-2 pt-1 border-t border-gray-700/50 mt-1";
           const answerLabel = document.createElement("span");
           answerLabel.className =
-            "text-xs font-bold text-green-400 flex-shrink-0";
+            "text-xs font-bold text-green-400 flex-shrink-0 mt-3";
           answerLabel.textContent = "Correct:";
           answerRow.appendChild(answerLabel);
 
           const answerSelect = document.createElement("select");
           answerSelect.className =
-            "flex-1 bg-gray-700 border border-gray-600 text-green-400 rounded-lg p-2 text-xs font-bold focus:ring-2 focus:ring-green-500 focus:outline-none";
+            "w-28 bg-gray-700 border border-gray-600 text-green-400 rounded-lg p-2 text-xs font-bold focus:ring-2 focus:ring-green-500 focus:outline-none";
           answerSelect.dataset.questionIndex = index;
-          populateAnswerDropdown(answerSelect, norm, norm.options);
+
+          const answerTextarea = document.createElement("textarea");
+          answerTextarea.className =
+            "auto-resize flex-1 bg-gray-700 border border-gray-600 text-green-400 rounded-lg p-2 text-sm font-bold focus:ring-2 focus:ring-green-500 focus:outline-none box-border leading-tight";
+          answerTextarea.rows = 1;
+          answerTextarea.value = norm.answer || "";
+          answerTextarea.placeholder = "Correct Answer text...";
+
           answerSelect.addEventListener("change", () => {
             generatedData[index].answer = answerSelect.value;
+            answerTextarea.value = answerSelect.value;
+            autoResize(answerTextarea);
           });
+
+          answerTextarea.addEventListener("input", () => {
+            generatedData[index].answer = answerTextarea.value;
+            autoResize(answerTextarea);
+            updateAnswerDropdown(answerSelect, generatedData[index]);
+          });
+
+          populateAnswerDropdown(answerSelect, norm, norm.options);
+
           answerRow.appendChild(answerSelect);
+          answerRow.appendChild(answerTextarea);
           body.appendChild(answerRow);
 
           // Explanation toggle + field (for Q&A Key only)
@@ -966,13 +1174,14 @@
 
           const explTextarea = document.createElement("textarea");
           explTextarea.className =
-            "w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none box-border";
-          explTextarea.rows = 3;
+            "auto-resize w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none box-border mt-1";
+          explTextarea.rows = 1;
           explTextarea.value = norm.explanation || "";
           explTextarea.placeholder =
             "Explain why this answer is correct (shown only in Q&A Key PDF)...";
           explTextarea.addEventListener("input", () => {
             generatedData[index].explanation = explTextarea.value;
+            autoResize(explTextarea);
           });
           explContainer.appendChild(explTextarea);
           body.appendChild(explContainer);
@@ -994,7 +1203,9 @@
 
         // Auto-resize all textareas after DOM is painted
         requestAnimationFrame(() => {
-          document.querySelectorAll(".question-input").forEach(autoResize);
+          document
+            .querySelectorAll(".question-input, .auto-resize")
+            .forEach(autoResize);
         });
 
         updateSelectedCount();
@@ -1003,7 +1214,7 @@
 
       function autoResize(textarea) {
         textarea.style.height = "auto";
-        const h = Math.max(textarea.scrollHeight, 44);
+        const h = Math.max(textarea.scrollHeight + 2, 44);
         textarea.style.height = h + "px";
       }
 
@@ -1022,7 +1233,7 @@
         options.forEach((opt, oi) => {
           const o = document.createElement("option");
           o.value = opt;
-          o.textContent = `${String.fromCharCode(65 + oi)}) ${opt}`;
+          o.textContent = `Option ${String.fromCharCode(65 + oi)}`;
           // Match: exact, or trimmed lowercase, or answer is just the letter
           if (
             opt === item.answer ||
@@ -1039,7 +1250,7 @@
         if (!matched && item.answer) {
           const customOpt = document.createElement("option");
           customOpt.value = item.answer;
-          customOpt.textContent = `? ${item.answer}`;
+          customOpt.textContent = `Custom`;
           customOpt.selected = true;
           customOpt.style.color = "#fbbf24";
           select.appendChild(customOpt);

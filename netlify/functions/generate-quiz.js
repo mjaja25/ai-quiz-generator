@@ -1,5 +1,5 @@
 const MODEL = "gemini-2.5-flash";
-const MAX_PROMPT_LENGTH = 2000;
+const MAX_PROMPT_LENGTH = 8000;
 const MAX_QUESTIONS = 20;
 const API_TIMEOUT_MS = 25000;
 

@@ -34,7 +34,7 @@ describe("generate-quiz handler", () => {
   });
 
   it("returns 400 when prompt exceeds max length", async () => {
-    const longPrompt = "a".repeat(2001);
+    const longPrompt = "a".repeat(8001);
     const res = await handler(mockEvent("POST", { prompt: longPrompt }));
     assert.equal(res.statusCode, 400);
     const body = JSON.parse(res.body);

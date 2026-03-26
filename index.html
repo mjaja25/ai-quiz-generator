@@ -381,6 +381,12 @@
                 >
                   Deselect All
                 </button>
+                <button
+                  id="deleteSelectedBtn"
+                  class="hidden flex-1 sm:flex-none justify-center text-sm bg-red-900/50 hover:bg-red-800/50 text-red-300 px-4 py-2 rounded-lg whitespace-nowrap"
+                >
+                  Delete Selected
+                </button>
               </div>
             </div>
             <div id="questionsList" class="space-y-4"></div>
@@ -469,6 +475,8 @@
       let uploadedFiles = [];
       let rejectedQuestions = [];
       let lastGeneratedTopic = "";
+      let lastDeleted = null; // { item, index } for single or [{ item, index }] for bulk
+      let lastAvoidStats = null; // { included, total } after mergeAvoidList
 
       // --- DOM refs ---
       const generateBtn = document.getElementById("generateBtn");
@@ -485,6 +493,7 @@
       const questionsList = document.getElementById("questionsList");
       const errorMessageDiv = document.getElementById("errorMessage");
       const toggleSelectAllBtn = document.getElementById("toggleSelectAllBtn");
+      const deleteSelectedBtn = document.getElementById("deleteSelectedBtn");
       const regenerateAllBtn = document.getElementById("regenerateAllBtn");
       const addQuestionBtn = document.getElementById("addQuestionBtn");
       const selectedCountSpan = document.getElementById("selectedCount");
@@ -560,6 +569,7 @@
         .getElementById("importJsonInput")
         .addEventListener("change", importJSON);
       toggleSelectAllBtn.addEventListener("click", toggleSelectAll);
+      deleteSelectedBtn.addEventListener("click", deleteSelected);
       regenerateAllBtn.addEventListener("click", handleGenerate);
       addQuestionBtn.addEventListener("click", addBlankQuestion);
 
@@ -606,6 +616,37 @@
       // Enter key on topic input
       topicInput.addEventListener("keydown", (e) => {
         if (e.key === "Enter" && !isGenerating) handleGenerate();
+      });
+
+      // Global keyboard shortcuts
+      document.addEventListener("keydown", (e) => {
+        if (!e.ctrlKey) return;
+        const tag = e.target.tagName;
+        // Ctrl+Enter: generate (works everywhere)
+        if (e.key === "Enter") {
+          e.preventDefault();
+          if (!isGenerating) handleGenerate();
+        }
+        // Ctrl+S: save JSON (skip if focused on input/textarea)
+        if (
+          e.key === "s" &&
+          tag !== "INPUT" &&
+          tag !== "TEXTAREA" &&
+          tag !== "SELECT"
+        ) {
+          e.preventDefault();
+          exportJSON();
+        }
+        // Ctrl+E: export Q&A Key (skip if focused on input/textarea)
+        if (
+          e.key === "e" &&
+          tag !== "INPUT" &&
+          tag !== "TEXTAREA" &&
+          tag !== "SELECT"
+        ) {
+          e.preventDefault();
+          if (generatedData.length > 0) exportPDF("key");
+        }
       });
 
       // Persist form inputs on change
@@ -663,13 +704,27 @@
       loadFormState();
 
       // --- Toast ---
-      function showToast(message) {
+      function showToast(message, actionLabel, actionFn) {
         const toast = document.createElement("div");
         toast.className =
-          "toast bg-gray-700 text-white px-4 py-2 rounded-lg shadow-lg text-sm";
-        toast.textContent = message;
+          "toast bg-gray-700 text-white px-4 py-2 rounded-lg shadow-lg text-sm flex items-center gap-3";
+        const msg = document.createElement("span");
+        msg.textContent = message;
+        toast.appendChild(msg);
+        if (actionLabel && actionFn) {
+          const btn = document.createElement("button");
+          btn.className =
+            "text-blue-400 hover:text-blue-300 font-semibold underline flex-shrink-0";
+          btn.textContent = actionLabel;
+          btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            actionFn();
+            toast.remove();
+          });
+          toast.appendChild(btn);
+        }
         toastContainer.appendChild(toast);
-        setTimeout(() => toast.remove(), 2600);
+        setTimeout(() => toast.remove(), 3000);
       }
 
       // --- Helpers ---
@@ -885,7 +940,10 @@
           seen.add(k);
           return true;
         });
-        if (unique.length === 0) return prompt;
+        if (unique.length === 0) {
+          lastAvoidStats = null;
+          return prompt;
+        }
 
         const maxChars = 3000;
         let accumulated = "";
@@ -895,6 +953,7 @@
           included.push(q);
           accumulated += q + "\n";
         }
+        lastAvoidStats = { included: included.length, total: unique.length };
         if (included.length > 0) {
           prompt += `\n\nIMPORTANT: Do NOT generate questions that are similar to or duplicates of these previously used/rejected questions:\n${included.join("\n")}`;
         }
@@ -1174,8 +1233,18 @@
 
           saveFormState();
           lastGeneratedTopic = topic;
+          lastDeleted = null;
           displayResults();
           resultsDiv.scrollIntoView({ behavior: "smooth", block: "start" });
+          // Warn if avoid list was truncated
+          if (
+            lastAvoidStats &&
+            lastAvoidStats.total > lastAvoidStats.included
+          ) {
+            showToast(
+              `Note: ${lastAvoidStats.included} of ${lastAvoidStats.total} avoid questions used (token limit reached)`,
+            );
+          }
         } catch (error) {
           if (error.name !== "AbortError") {
             console.error(error);
@@ -1312,7 +1381,48 @@
 
       // --- Delete question ---
       function deleteQuestion(index) {
+        lastDeleted = { item: generatedData[index], index: index };
         generatedData.splice(index, 1);
+        displayResults();
+        showToast("Question deleted", "Undo", undoDelete);
+      }
+
+      function undoDelete() {
+        if (!lastDeleted) return;
+        const insertAt = Math.min(lastDeleted.index, generatedData.length);
+        generatedData.splice(insertAt, 0, lastDeleted.item);
+        lastDeleted = null;
+        displayResults();
+      }
+
+      function deleteSelected() {
+        const selected = getCheckedIndices();
+        if (selected.length === 0) return;
+        // Save for undo
+        lastDeleted = selected.map((i) => ({
+          item: { ...generatedData[i] },
+          index: i,
+        }));
+        // Remove in reverse order to preserve indices
+        for (let i = selected.length - 1; i >= 0; i--) {
+          generatedData.splice(selected[i], 1);
+        }
+        displayResults();
+        showToast(
+          `Deleted ${selected.length} question${selected.length !== 1 ? "s" : ""}`,
+          "Undo",
+          undoBulkDelete,
+        );
+      }
+
+      function undoBulkDelete() {
+        if (!lastDeleted || !Array.isArray(lastDeleted)) return;
+        // Re-insert in original order
+        for (const d of lastDeleted) {
+          const insertAt = Math.min(d.index, generatedData.length);
+          generatedData.splice(insertAt, 0, d.item);
+        }
+        lastDeleted = null;
         displayResults();
       }
 
@@ -1422,6 +1532,16 @@
             generatedData[index].question = qTextarea.value;
             autoResize(qTextarea);
           });
+          qTextarea.addEventListener("focus", () => {
+            setTimeout(
+              () =>
+                qTextarea.scrollIntoView({
+                  behavior: "smooth",
+                  block: "center",
+                }),
+              300,
+            );
+          });
           body.appendChild(qTextarea);
 
           // Options
@@ -1445,6 +1565,16 @@
               generatedData[index].options[oi] = optInput.value;
               autoResize(optInput);
               updateAnswerDropdown(answerSelect, generatedData[index]);
+            });
+            optInput.addEventListener("focus", () => {
+              setTimeout(
+                () =>
+                  optInput.scrollIntoView({
+                    behavior: "smooth",
+                    block: "center",
+                  }),
+                300,
+              );
             });
             optRow.appendChild(optInput);
             body.appendChild(optRow);
@@ -1495,6 +1625,16 @@
             autoResize(answerTextarea);
             updateAnswerDropdown(answerSelect, generatedData[index]);
           });
+          answerTextarea.addEventListener("focus", () => {
+            setTimeout(
+              () =>
+                answerTextarea.scrollIntoView({
+                  behavior: "smooth",
+                  block: "center",
+                }),
+              300,
+            );
+          });
 
           populateAnswerDropdown(answerSelect, norm, norm.options);
 
@@ -1523,6 +1663,16 @@
           explTextarea.addEventListener("input", () => {
             generatedData[index].explanation = explTextarea.value;
             autoResize(explTextarea);
+          });
+          explTextarea.addEventListener("focus", () => {
+            setTimeout(
+              () =>
+                explTextarea.scrollIntoView({
+                  behavior: "smooth",
+                  block: "center",
+                }),
+              300,
+            );
           });
           explContainer.appendChild(explTextarea);
           body.appendChild(explContainer);
@@ -1620,6 +1770,12 @@
         selectedCountSpan.textContent = `${checked} of ${total} selected`;
         toggleSelectAllBtn.textContent =
           checked === total ? "Deselect All" : "Select All";
+        // Show delete selected when some but not all are selected
+        if (checked > 0 && checked < total) {
+          deleteSelectedBtn.classList.remove("hidden");
+        } else {
+          deleteSelectedBtn.classList.add("hidden");
+        }
       }
 
       function toggleSelectAll() {

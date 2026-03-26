@@ -333,7 +333,9 @@
             <div
               class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4"
             >
-              <div class="flex items-center justify-between w-full sm:w-auto gap-3">
+              <div
+                class="flex items-center justify-between w-full sm:w-auto gap-3"
+              >
                 <h3 class="text-xl font-semibold">Review Questions</h3>
                 <span
                   id="selectedCount"
@@ -452,6 +454,7 @@
       let isGenerating = false;
       let avoidQuestions = [];
       let uploadedFiles = [];
+      let rejectedQuestions = [];
 
       // --- DOM refs ---
       const generateBtn = document.getElementById("generateBtn");
@@ -850,17 +853,183 @@
         prompt += ` Include a brief "explanation" for each answer explaining why it is correct.`;
         prompt += ` Format strictly as JSON: [{ "question": "string", "options": [${optionsSchema}], "answer": "correct_option_text", "explanation": "brief explanation of the correct answer" }]`;
 
-        // Append avoid list (anti-duplicate)
-        if (avoidQuestions.length > 0) {
-          const maxAvoidChars = 3000;
+        prompt = mergeAvoidList(prompt, []);
+
+        return prompt;
+      }
+
+      function mergeAvoidList(prompt, extraAvoid) {
+        const allAvoid = [
+          ...avoidQuestions,
+          ...rejectedQuestions,
+          ...extraAvoid,
+        ];
+        const seen = new Set();
+        const unique = allAvoid.filter((q) => {
+          const k = q.toLowerCase();
+          if (seen.has(k)) return false;
+          seen.add(k);
+          return true;
+        });
+        if (unique.length === 0) return prompt;
+
+        const maxChars = 3000;
+        let accumulated = "";
+        const included = [];
+        for (const q of unique) {
+          if (accumulated.length + q.length + 2 > maxChars) break;
+          included.push(q);
+          accumulated += q + "\n";
+        }
+        if (included.length > 0) {
+          prompt += `\n\nIMPORTANT: Do NOT generate questions that are similar to or duplicates of these previously used/rejected questions:\n${included.join("\n")}`;
+        }
+        return prompt;
+      }
+
+      // --- Regeneration prompt with context ---
+      function buildRegenPrompt(index) {
+        const topic = topicInput.value.trim();
+        const modifier = topicModifierInput.value.trim();
+        const difficulty = difficultySelect.value;
+        const numOpts = Math.min(
+          Math.max(parseInt(numOptionsInput.value, 10) || 4, 2),
+          6,
+        );
+
+        const optionsSchema = Array(numOpts).fill('"string"').join(", ");
+
+        let prompt = `Generate exactly 1 MCQ about "${topic}".`;
+        prompt += ` Difficulty: ${difficulty}.`;
+        if (modifier) prompt += ` Instructions: ${modifier}.`;
+        prompt += ` The question must have exactly ${numOpts} options.`;
+        prompt += ` Include a brief "explanation" for the correct answer.`;
+        prompt += ` Format strictly as JSON: [{ "question": "string", "options": [${optionsSchema}], "answer": "correct_option_text", "explanation": "brief explanation" }]`;
+
+        // Context: current question being replaced
+        const current = generatedData[index];
+        if (current && current.question) {
+          prompt += `\n\nReplace this question: "${current.question}"`;
+          if (current.options && current.options.length) {
+            prompt += ` Options: ${current.options.join(", ")}`;
+          }
+        }
+
+        // Context: neighboring questions for coherence
+        const neighbors = [];
+        for (
+          let i = Math.max(0, index - 1);
+          i <= Math.min(generatedData.length - 1, index + 1);
+          i++
+        ) {
+          if (i !== index && generatedData[i] && generatedData[i].question) {
+            neighbors.push(`Q${i + 1}: ${generatedData[i].question}`);
+          }
+        }
+        if (neighbors.length > 0) {
+          prompt += `\n\nOther questions in this quiz (maintain coherence, avoid overlap):\n${neighbors.join("\n")}`;
+        }
+
+        // Merged avoid list: uploaded + rejected + current question
+        const extraAvoid =
+          current && current.question ? [current.question] : [];
+        prompt = mergeAvoidList(prompt, extraAvoid);
+
+        return prompt;
+      }
+
+      function appendAvoidList(prompt) {
+        const allAvoid = [...avoidQuestions, ...rejectedQuestions];
+        const seen = new Set();
+        const unique = allAvoid.filter((q) => {
+          const k = q.toLowerCase();
+          if (seen.has(k)) return false;
+          seen.add(k);
+          return true;
+        });
+        if (unique.length === 0) return prompt;
+
+        const maxChars = 3000;
+        let accumulated = "";
+        const included = [];
+        for (const q of unique) {
+          if (accumulated.length + q.length + 2 > maxChars) break;
+          included.push(q);
+          accumulated += q + "\n";
+        }
+        if (included.length > 0) {
+          prompt += `\n\nIMPORTANT: Do NOT generate questions that are similar to or duplicates of these previously used/rejected questions:\n${included.join("\n")}`;
+        }
+        return prompt;
+      }
+
+      // --- Regeneration prompt with context ---
+      function buildRegenPrompt(index) {
+        const topic = topicInput.value.trim();
+        const modifier = topicModifierInput.value.trim();
+        const difficulty = difficultySelect.value;
+        const numOpts = Math.min(
+          Math.max(parseInt(numOptionsInput.value, 10) || 4, 2),
+          6,
+        );
+
+        const optionsSchema = Array(numOpts).fill('"string"').join(", ");
+
+        let prompt = `Generate exactly 1 MCQ about "${topic}".`;
+        prompt += ` Difficulty: ${difficulty}.`;
+        if (modifier) prompt += ` Instructions: ${modifier}.`;
+        prompt += ` The question must have exactly ${numOpts} options.`;
+        prompt += ` Include a brief "explanation" for the correct answer.`;
+        prompt += ` Format strictly as JSON: [{ "question": "string", "options": [${optionsSchema}], "answer": "correct_option_text", "explanation": "brief explanation" }]`;
+
+        // Context: current question being replaced
+        const current = generatedData[index];
+        if (current && current.question) {
+          prompt += `\n\nReplace this question: "${current.question}"`;
+          if (current.options && current.options.length) {
+            prompt += ` Options: ${current.options.join(", ")}`;
+          }
+        }
+
+        // Context: neighboring questions for coherence
+        const neighbors = [];
+        for (
+          let i = Math.max(0, index - 1);
+          i <= Math.min(generatedData.length - 1, index + 1);
+          i++
+        ) {
+          if (i !== index && generatedData[i] && generatedData[i].question) {
+            neighbors.push(`Q${i + 1}: ${generatedData[i].question}`);
+          }
+        }
+        if (neighbors.length > 0) {
+          prompt += `\n\nOther questions in this quiz (maintain coherence, avoid overlap):\n${neighbors.join("\n")}`;
+        }
+
+        // Merged avoid list: uploaded + rejected + current question
+        const allAvoid = [...avoidQuestions, ...rejectedQuestions];
+        if (current && current.question) {
+          allAvoid.push(current.question);
+        }
+        const seen = new Set();
+        const unique = allAvoid.filter((q) => {
+          const k = q.toLowerCase();
+          if (seen.has(k)) return false;
+          seen.add(k);
+          return true;
+        });
+        if (unique.length > 0) {
+          const maxChars = 3000;
           let accumulated = "";
-          const avoided = [];
-          for (const q of avoidQuestions) {
-            if (accumulated.length + q.length + 2 > maxAvoidChars) break;
-            avoided.push(q);
+          const included = [];
+          for (const q of unique) {
+            if (accumulated.length + q.length + 2 > maxChars) break;
+            included.push(q);
             accumulated += q + "\n";
           }
-          prompt += `\n\nIMPORTANT: Do NOT generate questions that are similar to or duplicates of these previously used questions:\n${avoided.join("\n")}`;
+          if (included.length > 0) {
+            prompt += `\n\nIMPORTANT: Do NOT generate questions similar to these (previously used, uploaded, or rejected):\n${included.join("\n")}`;
+          }
         }
 
         return prompt;
@@ -934,6 +1103,16 @@
         if (!topic) {
           showError("Please enter a topic.");
           return;
+        }
+
+        // If regenerating all, push current questions to rejected list
+        if (generatedData.length > 0) {
+          for (const q of generatedData) {
+            if (q && q.question) rejectedQuestions.push(q.question);
+          }
+        } else {
+          // Fresh generate: clear rejected history
+          rejectedQuestions = [];
         }
 
         const numQuestions = Math.min(
@@ -1033,18 +1212,82 @@
         if (spinner) spinner.classList.remove("hidden");
         if (regenBtn) regenBtn.disabled = true;
 
+        // Push current question into rejected list
+        const current = generatedData[index];
+        if (current && current.question) {
+          rejectedQuestions.push(current.question);
+        }
+
         try {
-          const prompt = buildPrompt(1);
+          const prompt = buildRegenPrompt(index);
           const data = await callAPI(prompt);
           if (data && data.length > 0) {
             generatedData[index] = data[0];
-            displayResults();
+            updateSingleCard(index);
           }
         } catch (error) {
           showToast("Failed to regenerate: " + error.message);
+          // Remove the question we just pushed (regen failed)
+          rejectedQuestions.pop();
           if (spinner) spinner.classList.add("hidden");
           if (regenBtn) regenBtn.disabled = false;
         }
+      }
+
+      // --- Partial DOM update: rebuild one card without destroying others ---
+      function updateSingleCard(index) {
+        const card = questionsList.children[index];
+        if (!card) return;
+
+        const norm = normalizeItem(generatedData[index]);
+        generatedData[index] = norm;
+
+        // Update question textarea
+        const qTextarea = card.querySelector("textarea.question-input");
+        if (qTextarea) {
+          qTextarea.value = norm.question;
+          autoResize(qTextarea);
+        }
+
+        // Update option textareas (auto-resize class, excluding question-input and the answer textarea)
+        const optTextareas = card.querySelectorAll(
+          "div.flex.items-center.gap-2 textarea.auto-resize",
+        );
+        optTextareas.forEach((ta, oi) => {
+          if (oi < norm.options.length) {
+            ta.value = norm.options[oi];
+            generatedData[index].options[oi] = norm.options[oi];
+            autoResize(ta);
+          }
+        });
+
+        // Update answer select and textarea
+        const answerSelect = card.querySelector("select");
+        if (answerSelect) {
+          populateAnswerDropdown(answerSelect, norm, norm.options);
+        }
+        const answerTextarea = card.querySelector(
+          "textarea[placeholder*='Correct Answer']",
+        );
+        if (answerTextarea) {
+          answerTextarea.value = norm.answer || "";
+          autoResize(answerTextarea);
+        }
+
+        // Update explanation textarea
+        const explTextarea = card.querySelector(
+          "textarea[placeholder*='Explain why']",
+        );
+        if (explTextarea) {
+          explTextarea.value = norm.explanation || "";
+          autoResize(explTextarea);
+        }
+
+        // Hide regen spinner, re-enable button
+        const spinner = card.querySelector(".regen-spinner");
+        const regenBtn = card.querySelector(".regen-btn");
+        if (spinner) spinner.classList.add("hidden");
+        if (regenBtn) regenBtn.disabled = false;
       }
 
       // --- Delete question ---
@@ -1190,7 +1433,7 @@
           const answerRow = document.createElement("div");
           answerRow.className =
             "flex flex-col sm:flex-row sm:items-start gap-2 pt-2 border-t border-gray-700/50 mt-1";
-          
+
           const titleLabel = document.createElement("span");
           titleLabel.className =
             "text-xs font-bold text-green-400 flex-shrink-0 sm:mt-3 hidden sm:block";
@@ -1198,10 +1441,12 @@
           answerRow.appendChild(titleLabel);
 
           const selectContainer = document.createElement("div");
-          selectContainer.className = "flex items-center gap-2 w-full sm:w-auto flex-shrink-0";
-          
+          selectContainer.className =
+            "flex items-center gap-2 w-full sm:w-auto flex-shrink-0";
+
           const mobileLabel = document.createElement("span");
-          mobileLabel.className = "text-xs font-bold text-green-400 sm:hidden block shrink-0";
+          mobileLabel.className =
+            "text-xs font-bold text-green-400 sm:hidden block shrink-0";
           mobileLabel.textContent = "Correct:";
           selectContainer.appendChild(mobileLabel);
 
@@ -1622,6 +1867,7 @@
             if (!Array.isArray(data.questions))
               throw new Error("Invalid format: missing questions array.");
             generatedData = data.questions;
+            rejectedQuestions = [];
             if (data.title) quizTitleInput.value = data.title;
             if (data.difficulty) difficultySelect.value = data.difficulty;
             displayResults();

@@ -6,6 +6,7 @@
     <title>Dream Centre | AI MCQ Generator</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/docx/build/index.js"></script>
     <style>
       @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
       body {
@@ -560,6 +561,24 @@
               Export Q&A Key (PDF)
             </button>
             <button
+              id="exportWordStudentBtn"
+              class="bg-yellow-600/50 hover:bg-yellow-600 text-white font-bold py-3 px-4 rounded-lg transition text-sm"
+            >
+              Export Student Sheet (Word)
+            </button>
+            <button
+              id="exportWordQuestionsBtn"
+              class="bg-green-600/50 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg transition text-sm"
+            >
+              Export Questions (Word)
+            </button>
+            <button
+              id="exportWordKeyBtn"
+              class="bg-indigo-600/50 hover:bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg transition text-sm"
+            >
+              Export Q&A Key (Word)
+            </button>
+            <button
               id="copyTextBtn"
               class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-3 px-4 rounded-lg transition text-sm"
             >
@@ -788,6 +807,15 @@
       document
         .getElementById("exportStudentSheetBtn")
         .addEventListener("click", () => exportPDF("student"));
+      document
+        .getElementById("exportWordQuestionsBtn")
+        .addEventListener("click", () => exportWord("questions"));
+      document
+        .getElementById("exportWordStudentBtn")
+        .addEventListener("click", () => exportWord("student"));
+      document
+        .getElementById("exportWordKeyBtn")
+        .addEventListener("click", () => exportWord("key"));
       document
         .getElementById("copyTextBtn")
         .addEventListener("click", copyAsText);
@@ -1568,10 +1596,13 @@
         });
         displayResults();
         // Focus the last question's textarea
-        const lastTextarea = questionsList.querySelector(
-          "div:last-of-type textarea.question-input",
-        );
-        if (lastTextarea) lastTextarea.focus();
+        const lastCard = questionsList.lastElementChild;
+        if (lastCard) {
+          const lastTextarea = lastCard.querySelector(
+            "textarea.question-input",
+          );
+          if (lastTextarea) lastTextarea.focus();
+        }
       }
 
       // --- Regenerate single question ---
@@ -1724,9 +1755,7 @@
         };
         return {
           question: decode(item.question),
-          options: Array.isArray(item.options)
-            ? item.options.map(decode).filter((o) => o.length > 0)
-            : [],
+          options: Array.isArray(item.options) ? item.options.map(decode) : [],
           answer: decode(item.answer),
           explanation: decode(item.explanation || ""),
         };
@@ -2275,6 +2304,192 @@
         const dateFile = new Date().toISOString().split("T")[0];
         const suffix = isKey ? "Key" : isStudent ? "StudentSheet" : "Questions";
         doc.save(`DreamCentre_${safeName}_${dateFile}_${suffix}.pdf`);
+      }
+
+      // --- Export: Word (.docx) ---
+      function exportWord(mode) {
+        if (!window.docx) {
+          showError("Word export library not loaded. Try refreshing the page.");
+          return;
+        }
+        const selectedIndices = getCheckedIndices();
+        if (selectedIndices.length === 0)
+          return showError("Select at least one question.");
+
+        const selected = selectedIndices.map((i) => generatedData[i]);
+        const isKey = mode === "key";
+        const isStudent = mode === "student";
+        const title =
+          quizTitleInput.value.trim() || topicInput.value.trim() || "Quiz";
+        const titleSuffix = isKey ? " (Answer Key)" : "";
+        const dateStr = new Date().toLocaleDateString("en-IN", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        });
+
+        const children = [];
+
+        // Title
+        children.push(
+          new docx.Paragraph({
+            text: `Dream Centre: ${title}${titleSuffix}`,
+            heading: docx.HeadingLevel.HEADING_1,
+            spacing: { after: 200 },
+          }),
+        );
+
+        // Date
+        children.push(
+          new docx.Paragraph({
+            text: `Generated on: ${dateStr}`,
+            spacing: { after: isStudent ? 100 : 300 },
+            style: { run: { size: 18, color: "888888" } },
+          }),
+        );
+
+        // Student sheet header
+        if (isStudent) {
+          children.push(
+            new docx.Paragraph({
+              children: [
+                new docx.TextRun({ text: "Name: ", bold: true, size: 22 }),
+                new docx.TextRun({
+                  text: "______________________________",
+                  size: 22,
+                }),
+                new docx.TextRun({ text: "    Date: ", bold: true, size: 22 }),
+                new docx.TextRun({ text: "______________", size: 22 }),
+              ],
+              spacing: { after: 100 },
+            }),
+          );
+          children.push(
+            new docx.Paragraph({
+              children: [
+                new docx.TextRun({ text: "Score: ", bold: true, size: 22 }),
+                new docx.TextRun({
+                  text: `______ / ${selected.length}`,
+                  size: 22,
+                }),
+              ],
+              spacing: { after: 300 },
+            }),
+          );
+        }
+
+        // Questions
+        selected.forEach((q, i) => {
+          // Question text
+          children.push(
+            new docx.Paragraph({
+              children: [
+                new docx.TextRun({ text: `${i + 1}. `, bold: true }),
+                new docx.TextRun({ text: q.question, bold: true }),
+              ],
+              spacing: { after: 100 },
+            }),
+          );
+
+          // Options
+          q.options.forEach((opt, oi) => {
+            const letter = String.fromCharCode(65 + oi);
+            if (isStudent) {
+              children.push(
+                new docx.Paragraph({
+                  children: [
+                    new docx.TextRun({ text: "( ) ", size: 22 }),
+                    new docx.TextRun({ text: `${letter}) ${opt}`, size: 22 }),
+                  ],
+                  indent: { left: 360 },
+                  spacing: { after: 60 },
+                }),
+              );
+            } else {
+              children.push(
+                new docx.Paragraph({
+                  children: [new docx.TextRun({ text: `${letter}) ${opt}` })],
+                  indent: { left: 360 },
+                  spacing: { after: 60 },
+                }),
+              );
+            }
+          });
+
+          // Answer (key mode)
+          if (isKey) {
+            children.push(
+              new docx.Paragraph({
+                children: [
+                  new docx.TextRun({
+                    text: "Answer: ",
+                    bold: true,
+                    color: "008000",
+                    size: 20,
+                  }),
+                  new docx.TextRun({
+                    text: q.answer,
+                    bold: true,
+                    color: "008000",
+                    size: 20,
+                  }),
+                ],
+                indent: { left: 360 },
+                spacing: { before: 60, after: 60 },
+              }),
+            );
+
+            // Explanation (key mode)
+            if (q.explanation) {
+              children.push(
+                new docx.Paragraph({
+                  children: [
+                    new docx.TextRun({
+                      text: "Explanation: ",
+                      italics: true,
+                      color: "555555",
+                      size: 20,
+                    }),
+                    new docx.TextRun({
+                      text: q.explanation,
+                      italics: true,
+                      color: "555555",
+                      size: 20,
+                    }),
+                  ],
+                  indent: { left: 360 },
+                  spacing: { after: 200 },
+                }),
+              );
+            }
+          }
+
+          // Spacing between questions
+          children.push(
+            new docx.Paragraph({ text: "", spacing: { after: 200 } }),
+          );
+        });
+
+        // Create document
+        const doc = new docx.Document({
+          sections: [{ properties: {}, children }],
+        });
+
+        // Generate and download
+        docx.Packer.toBlob(doc).then((blob) => {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          const safeName = title.replace(/[^a-zA-Z0-9]/g, "_").substring(0, 30);
+          const suffix = isKey
+            ? "Key"
+            : isStudent
+              ? "StudentSheet"
+              : "Questions";
+          a.download = `DreamCentre_${safeName}_${suffix}.docx`;
+          a.click();
+          URL.revokeObjectURL(url);
+        });
       }
 
       // --- Export: Copy as Text ---

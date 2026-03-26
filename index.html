@@ -453,10 +453,6 @@
       let isGenerating = false;
       let avoidQuestions = [];
       let uploadedFiles = [];
-      );
-      let generatedData = [];
-      let abortController = null;
-      let isGenerating = false;
 
       // --- DOM refs ---
       const generateBtn = document.getElementById("generateBtn");
@@ -652,7 +648,7 @@
       // --- Upload: Previous Questions (anti-duplicate) ---
       function parseJSONQuestions(text) {
         const data = JSON.parse(text);
-        const questions = Array.isArray(data) ? data : (data.questions || []);
+        const questions = Array.isArray(data) ? data : data.questions || [];
         return questions
           .map((q) => (typeof q.question === "string" ? q.question.trim() : ""))
           .filter((q) => q.length > 0);
@@ -661,7 +657,8 @@
       async function parsePDFQuestions(file) {
         if (!window.pdfjsLib) throw new Error("PDF library not loaded");
         const arrayBuffer = await file.arrayBuffer();
-        const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer })
+          .promise;
         let allText = "";
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
@@ -688,10 +685,17 @@
             }
             if (questions.length > 0) {
               // Deduplicate against existing
-              const existing = new Set(avoidQuestions.map((q) => q.toLowerCase()));
-              const newQs = questions.filter((q) => !existing.has(q.toLowerCase()));
+              const existing = new Set(
+                avoidQuestions.map((q) => q.toLowerCase()),
+              );
+              const newQs = questions.filter(
+                (q) => !existing.has(q.toLowerCase()),
+              );
               avoidQuestions.push(...newQs);
-              uploadedFiles.push({ name: file.name, questionCount: questions.length });
+              uploadedFiles.push({
+                name: file.name,
+                questionCount: questions.length,
+              });
               updateUploadedFilesUI();
               showToast(`Added ${newQs.length} questions from ${file.name}`);
             } else {
@@ -709,20 +713,23 @@
         uploadedFilesList.innerHTML = "";
         uploadedFiles.forEach((file, i) => {
           const chip = document.createElement("span");
-          chip.className = "inline-flex items-center gap-1 bg-blue-900/40 text-blue-300 text-xs px-2 py-1 rounded-full border border-blue-800";
+          chip.className =
+            "inline-flex items-center gap-1 bg-blue-900/40 text-blue-300 text-xs px-2 py-1 rounded-full border border-blue-800";
           chip.innerHTML = `${escapeAttr(file.name)} (${file.questionCount}) <button class="hover:text-red-400 ml-1" data-index="${i}">&times;</button>`;
           uploadedFilesList.appendChild(chip);
         });
         // Chip remove handlers
-        uploadedFilesList.querySelectorAll("button[data-index]").forEach((btn) => {
-          btn.addEventListener("click", (e) => {
-            e.stopPropagation();
-            const idx = parseInt(btn.dataset.index, 10);
-            uploadedFiles.splice(idx, 1);
-            // Rebuild avoidQuestions (not perfect but simple)
-            updateUploadedFilesUI();
+        uploadedFilesList
+          .querySelectorAll("button[data-index]")
+          .forEach((btn) => {
+            btn.addEventListener("click", (e) => {
+              e.stopPropagation();
+              const idx = parseInt(btn.dataset.index, 10);
+              uploadedFiles.splice(idx, 1);
+              // Rebuild avoidQuestions (not perfect but simple)
+              updateUploadedFilesUI();
+            });
           });
-        });
         // Update count badge
         if (avoidQuestions.length > 0) {
           uploadedCount.classList.remove("hidden");

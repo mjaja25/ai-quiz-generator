@@ -696,6 +696,29 @@
 
         try {
           generatedData = await callAPI(systemPrompt);
+
+          // Validate and clean API response
+          if (!Array.isArray(generatedData) || generatedData.length === 0) {
+            throw new Error("AI returned no questions. Try a different topic.");
+          }
+          generatedData = generatedData.map((item) => ({
+            question:
+              typeof item.question === "string" ? item.question.trim() : "",
+            options: Array.isArray(item.options)
+              ? item.options
+                  .map((o) => (typeof o === "string" ? o.trim() : String(o)))
+                  .filter((o) => o)
+              : [],
+            answer: typeof item.answer === "string" ? item.answer.trim() : "",
+          }));
+          // Drop questions with no text or no options
+          generatedData = generatedData.filter(
+            (q) => q.question && q.options.length > 0,
+          );
+          if (generatedData.length === 0) {
+            throw new Error("AI returned empty questions. Please try again.");
+          }
+
           saveFormState();
           displayResults();
           resultsDiv.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -772,12 +795,32 @@
         displayResults();
       }
 
+      // --- Normalize items from API (trim whitespace, decode HTML entities) ---
+      function normalizeItem(item) {
+        const decode = (s) => {
+          if (!s || typeof s !== "string") return s || "";
+          const el = document.createElement("textarea");
+          el.innerHTML = s;
+          return el.value.trim();
+        };
+        return {
+          question: decode(item.question),
+          options: Array.isArray(item.options)
+            ? item.options.map(decode).filter((o) => o.length > 0)
+            : [],
+          answer: decode(item.answer),
+        };
+      }
+
       // --- Display results ---
       function displayResults() {
         questionsList.innerHTML = "";
-        const numOpts = parseInt(numOptionsInput.value, 10) || 4;
 
         generatedData.forEach((item, index) => {
+          // Normalize on each render to handle dirty data
+          const norm = normalizeItem(item);
+          generatedData[index] = norm;
+
           const card = document.createElement("div");
           card.className =
             "question-card bg-gray-800 rounded-lg p-4 border border-gray-700 relative group";
@@ -818,7 +861,7 @@
           qTextarea.className =
             "question-input w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none";
           qTextarea.rows = 2;
-          qTextarea.value = item.question;
+          qTextarea.value = norm.question;
           qTextarea.addEventListener("input", () => {
             generatedData[index].question = qTextarea.value;
             autoResize(qTextarea);
@@ -829,7 +872,7 @@
           const optionsGrid = document.createElement("div");
           optionsGrid.className = "grid grid-cols-1 md:grid-cols-2 gap-2 mt-3";
 
-          item.options.forEach((opt, oi) => {
+          norm.options.forEach((opt, oi) => {
             const optRow = document.createElement("div");
             optRow.className = "flex items-center gap-2";
 
@@ -846,6 +889,8 @@
             optInput.value = opt;
             optInput.addEventListener("input", () => {
               generatedData[index].options[oi] = optInput.value;
+              // Update answer dropdown to reflect changed option
+              updateAnswerDropdown(answerSelect, generatedData[index]);
             });
             optRow.appendChild(optInput);
 
@@ -864,19 +909,10 @@
           const answerSelect = document.createElement("select");
           answerSelect.className =
             "bg-gray-700 border border-gray-600 text-green-400 rounded-lg p-1 text-xs focus:ring-2 focus:ring-green-500 focus:outline-none font-bold";
-          // Blank option
-          const blankOpt = document.createElement("option");
-          blankOpt.value = "";
-          blankOpt.textContent = "-- select --";
-          if (!item.answer) blankOpt.selected = true;
-          answerSelect.appendChild(blankOpt);
-          item.options.forEach((opt, oi) => {
-            const o = document.createElement("option");
-            o.value = opt;
-            o.textContent = `${String.fromCharCode(65 + oi)}) ${opt}`;
-            if (opt === item.answer) o.selected = true;
-            answerSelect.appendChild(o);
-          });
+          answerSelect.dataset.questionIndex = index;
+
+          populateAnswerDropdown(answerSelect, norm, norm.options);
+
           answerSelect.addEventListener("change", () => {
             generatedData[index].answer = answerSelect.value;
           });
@@ -929,6 +965,57 @@
       function autoResize(textarea) {
         textarea.style.height = "auto";
         textarea.style.height = textarea.scrollHeight + "px";
+      }
+
+      function populateAnswerDropdown(select, item, options) {
+        select.innerHTML = "";
+
+        // Blank option
+        const blankOpt = document.createElement("option");
+        blankOpt.value = "";
+        blankOpt.textContent = "-- select --";
+        select.appendChild(blankOpt);
+
+        const answerNorm = (item.answer || "").trim().toLowerCase();
+        let matched = false;
+
+        options.forEach((opt, oi) => {
+          const o = document.createElement("option");
+          o.value = opt;
+          o.textContent = `${String.fromCharCode(65 + oi)}) ${opt}`;
+          // Match: exact, or trimmed lowercase, or answer is just the letter
+          if (
+            opt === item.answer ||
+            opt.trim().toLowerCase() === answerNorm ||
+            `${String.fromCharCode(65 + oi)}`.toLowerCase() === answerNorm
+          ) {
+            o.selected = true;
+            matched = true;
+          }
+          select.appendChild(o);
+        });
+
+        // If answer doesn't match any option, show it as a custom entry
+        if (!matched && item.answer) {
+          const customOpt = document.createElement("option");
+          customOpt.value = item.answer;
+          customOpt.textContent = `? ${item.answer}`;
+          customOpt.selected = true;
+          customOpt.style.color = "#fbbf24";
+          select.appendChild(customOpt);
+        }
+      }
+
+      function updateAnswerDropdown(select, item) {
+        const currentValue = select.value;
+        populateAnswerDropdown(select, item, item.options);
+        // Restore selection if it still exists
+        if (currentValue) {
+          const exists = Array.from(select.options).some(
+            (o) => o.value === currentValue,
+          );
+          if (exists) select.value = currentValue;
+        }
       }
 
       // --- Selected count ---

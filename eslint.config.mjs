@@ -3,7 +3,7 @@ import js from "@eslint/js";
 export default [
   js.configs.recommended,
   {
-    files: ["netlify/**/*.js"],
+    files: ["netlify/**/*.js", "tests/**/*.js"],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: "commonjs",
@@ -20,6 +20,8 @@ export default [
         parseInt: "readonly",
         setTimeout: "readonly",
         clearTimeout: "readonly",
+        describe: "readonly",
+        it: "readonly",
       },
     },
     rules: {

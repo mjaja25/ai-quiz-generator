@@ -105,6 +105,8 @@ Alternatively, open `index.html` directly in a browser. You'll be prompted for y
 │   └── functions/
 │       ├── generate-quiz.js      # Serverless API proxy
 │       └── generate-quiz.test.js # Tests
+├── tests/
+│   └── generate-quiz.test.js     # Tests
 ├── netlify.toml                  # Netlify config
 ├── eslint.config.mjs             # ESLint config
 ├── .github/workflows/ci.yml      # GitHub Actions CI

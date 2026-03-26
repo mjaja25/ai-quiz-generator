@@ -817,147 +817,150 @@
         questionsList.innerHTML = "";
 
         generatedData.forEach((item, index) => {
-          // Normalize on each render to handle dirty data
+          // Normalize on each render
           const norm = normalizeItem(item);
           generatedData[index] = norm;
 
+          // Build card HTML safely using DOM APIs
           const card = document.createElement("div");
           card.className =
-            "question-card bg-gray-800 rounded-lg p-4 border border-gray-700 relative group";
+            "question-card bg-gray-800 rounded-lg border border-gray-700 overflow-hidden";
           card.draggable = true;
           card.dataset.index = index;
 
-          // Drag handle
-          const dragHandle = document.createElement("div");
-          dragHandle.className =
-            "drag-handle text-gray-500 hover:text-gray-300 absolute top-3 left-2 select-none";
-          dragHandle.innerHTML = "&#8942;&#8942;";
-          dragHandle.title = "Drag to reorder";
-          card.appendChild(dragHandle);
+          // Header bar: number + drag + checkbox + actions
+          const header = document.createElement("div");
+          header.className =
+            "flex items-center justify-between gap-2 px-4 py-2 bg-gray-700/50 border-b border-gray-700";
 
-          // Top row: checkbox + controls
-          const topRow = document.createElement("div");
-          topRow.className = "flex items-start gap-3 ml-6";
+          const headerLeft = document.createElement("div");
+          headerLeft.className = "flex items-center gap-2";
+
+          const dragHandle = document.createElement("span");
+          dragHandle.className =
+            "drag-handle text-gray-500 hover:text-gray-300 cursor-grab text-lg leading-none select-none";
+          dragHandle.textContent = "\u2630";
+          dragHandle.title = "Drag to reorder";
+          headerLeft.appendChild(dragHandle);
 
           const checkbox = document.createElement("input");
           checkbox.type = "checkbox";
           checkbox.checked = true;
           checkbox.dataset.index = index;
           checkbox.className =
-            "q-check mt-1 w-5 h-5 rounded bg-gray-700 border-gray-600 text-blue-500 flex-shrink-0";
+            "q-check w-4 h-4 rounded bg-gray-700 border-gray-600 text-blue-500";
           checkbox.addEventListener("change", updateSelectedCount);
-          topRow.appendChild(checkbox);
+          headerLeft.appendChild(checkbox);
 
-          const contentDiv = document.createElement("div");
-          contentDiv.className = "flex-1 min-w-0";
+          const qNum = document.createElement("span");
+          qNum.className = "text-sm font-semibold text-gray-300";
+          qNum.textContent = `Q${index + 1}`;
+          headerLeft.appendChild(qNum);
 
-          // Question number + textarea
-          const qLabel = document.createElement("label");
-          qLabel.className = "block text-sm font-medium text-gray-400 mb-1";
-          qLabel.textContent = `Question ${index + 1}`;
-          contentDiv.appendChild(qLabel);
+          header.appendChild(headerLeft);
 
+          // Header right: action buttons
+          const headerRight = document.createElement("div");
+          headerRight.className = "flex items-center gap-1";
+
+          const regenBtn = document.createElement("button");
+          regenBtn.className =
+            "regen-btn p-1 text-gray-400 hover:text-blue-400 rounded transition";
+          regenBtn.title = "Regenerate";
+          regenBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>`;
+          regenBtn.addEventListener("click", () => regenerateQuestion(index));
+          headerRight.appendChild(regenBtn);
+
+          const regenSpinner = document.createElement("span");
+          regenSpinner.className = "regen-spinner hidden";
+          regenSpinner.innerHTML = `<div class="loader" style="width:16px;height:16px;border-width:2px;display:inline-block;vertical-align:middle;"></div>`;
+          headerRight.appendChild(regenSpinner);
+
+          const delBtn = document.createElement("button");
+          delBtn.className =
+            "p-1 text-gray-400 hover:text-red-400 rounded transition";
+          delBtn.title = "Delete";
+          delBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>`;
+          delBtn.addEventListener("click", () => deleteQuestion(index));
+          headerRight.appendChild(delBtn);
+
+          header.appendChild(headerRight);
+          card.appendChild(header);
+
+          // Card body
+          const body = document.createElement("div");
+          body.className = "p-4 space-y-3";
+
+          // Question textarea
           const qTextarea = document.createElement("textarea");
           qTextarea.className =
-            "question-input w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none";
+            "question-input w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none box-border";
           qTextarea.rows = 2;
           qTextarea.value = norm.question;
+          qTextarea.placeholder = "Enter question text...";
           qTextarea.addEventListener("input", () => {
             generatedData[index].question = qTextarea.value;
             autoResize(qTextarea);
           });
-          contentDiv.appendChild(qTextarea);
+          body.appendChild(qTextarea);
 
-          // Options
-          const optionsGrid = document.createElement("div");
-          optionsGrid.className = "grid grid-cols-1 md:grid-cols-2 gap-2 mt-3";
-
+          // Options - simple vertical list
           norm.options.forEach((opt, oi) => {
             const optRow = document.createElement("div");
             optRow.className = "flex items-center gap-2";
 
-            const optLabel = document.createElement("span");
-            optLabel.className =
-              "text-sm text-gray-400 font-medium flex-shrink-0 w-5";
-            optLabel.textContent = `${String.fromCharCode(65 + oi)})`;
-            optRow.appendChild(optLabel);
+            const letter = document.createElement("span");
+            letter.className =
+              "text-sm text-gray-400 font-medium w-5 text-right flex-shrink-0";
+            letter.textContent = `${String.fromCharCode(65 + oi)})`;
+            optRow.appendChild(letter);
 
             const optInput = document.createElement("input");
             optInput.type = "text";
             optInput.className =
-              "flex-1 bg-gray-700 border border-gray-600 text-white rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none min-w-0";
+              "flex-1 min-w-0 bg-gray-700 border border-gray-600 text-white rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none box-border";
             optInput.value = opt;
+            optInput.placeholder = `Option ${String.fromCharCode(65 + oi)}`;
             optInput.addEventListener("input", () => {
               generatedData[index].options[oi] = optInput.value;
-              // Update answer dropdown to reflect changed option
               updateAnswerDropdown(answerSelect, generatedData[index]);
             });
             optRow.appendChild(optInput);
 
-            optionsGrid.appendChild(optRow);
+            body.appendChild(optRow);
           });
-          contentDiv.appendChild(optionsGrid);
 
-          // Answer
+          // Answer dropdown
           const answerRow = document.createElement("div");
-          answerRow.className = "flex items-center gap-2 mt-3";
+          answerRow.className = "flex items-center gap-2 pt-1";
+
           const answerLabel = document.createElement("span");
-          answerLabel.className = "text-xs font-bold text-green-400";
+          answerLabel.className =
+            "text-xs font-bold text-green-400 flex-shrink-0";
           answerLabel.textContent = "Correct:";
           answerRow.appendChild(answerLabel);
 
           const answerSelect = document.createElement("select");
           answerSelect.className =
-            "bg-gray-700 border border-gray-600 text-green-400 rounded-lg p-1 text-xs focus:ring-2 focus:ring-green-500 focus:outline-none font-bold";
+            "flex-1 bg-gray-700 border border-gray-600 text-green-400 rounded-lg p-2 text-xs font-bold focus:ring-2 focus:ring-green-500 focus:outline-none";
           answerSelect.dataset.questionIndex = index;
-
           populateAnswerDropdown(answerSelect, norm, norm.options);
-
           answerSelect.addEventListener("change", () => {
             generatedData[index].answer = answerSelect.value;
           });
           answerRow.appendChild(answerSelect);
-          contentDiv.appendChild(answerRow);
 
-          topRow.appendChild(contentDiv);
-
-          // Action buttons (right side)
-          const actionsDiv = document.createElement("div");
-          actionsDiv.className = "flex flex-col gap-1 flex-shrink-0";
-
-          // Regenerate button
-          const regenBtn = document.createElement("button");
-          regenBtn.className =
-            "regen-btn p-1.5 text-gray-400 hover:text-blue-400 hover:bg-gray-700 rounded transition";
-          regenBtn.title = "Regenerate this question";
-          regenBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>`;
-          regenBtn.addEventListener("click", () => regenerateQuestion(index));
-          actionsDiv.appendChild(regenBtn);
-
-          // Regenerate spinner
-          const regenSpinner = document.createElement("div");
-          regenSpinner.className = "regen-spinner hidden";
-          regenSpinner.innerHTML = `<div class="loader" style="width:20px;height:20px;border-width:2px;"></div>`;
-          actionsDiv.appendChild(regenSpinner);
-
-          // Delete button
-          const delBtn = document.createElement("button");
-          delBtn.className =
-            "p-1.5 text-gray-400 hover:text-red-400 hover:bg-gray-700 rounded transition";
-          delBtn.title = "Delete this question";
-          delBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>`;
-          delBtn.addEventListener("click", () => deleteQuestion(index));
-          actionsDiv.appendChild(delBtn);
-
-          topRow.appendChild(actionsDiv);
-          card.appendChild(topRow);
+          body.appendChild(answerRow);
+          card.appendChild(body);
           questionsList.appendChild(card);
-
-          // Auto-resize textarea
-          autoResize(qTextarea);
         });
 
+        // Show results FIRST, then auto-resize textareas
         resultsDiv.classList.remove("hidden");
+
+        // Auto-resize all textareas now that they're visible
+        document.querySelectorAll(".question-input").forEach(autoResize);
+
         updateSelectedCount();
         initDragAndDrop();
       }

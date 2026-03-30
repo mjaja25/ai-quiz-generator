@@ -477,7 +477,6 @@ function toggleTheme() {
 | 1. Undo button        | Small  | None                         |
 | 7. Mobile keyboard    | Small  | None                         |
 | 4. Topic suggestions  | Medium | None                         |
-| 9. Quiz metadata      | Medium | None                         |
 | 6. PDF customization  | Medium | None                         |
 | 3. Word export        | Medium | `docx` npm package           |
 | 10. Dark/light mode   | Large  | Tailwind dark: prefix rework |

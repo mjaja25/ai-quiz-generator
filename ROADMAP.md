@@ -46,11 +46,6 @@ Small, low-risk improvements to existing features.
 - When uploaded avoid list exceeds 3000-char budget, show a warning
 - "Only the first X of Y questions will be included due to token limits"
 
-### 9. Quiz metadata in JSON export
-
-- Add subject, grade level, teacher name fields to export
-- Makes it easier for schools to organize quiz files
-
 ### 10. Dark/Light mode toggle
 
 - Simple CSS variable switch

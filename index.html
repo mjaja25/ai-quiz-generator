@@ -553,19 +553,19 @@
             </button>
             <button
               id="exportWordStudentBtn"
-              class="bg-yellow-600/50 hover:bg-yellow-600 text-gray-900 dark:text-white font-bold py-3 px-4 rounded-lg transition text-sm"
+              class="bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-4 rounded-lg transition text-sm"
             >
               Export Student Sheet (Word)
             </button>
             <button
               id="exportWordQuestionsBtn"
-              class="bg-green-600/50 hover:bg-green-600 text-gray-900 dark:text-white font-bold py-3 px-4 rounded-lg transition text-sm"
+              class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 px-4 rounded-lg transition text-sm"
             >
               Export Questions (Word)
             </button>
             <button
               id="exportWordKeyBtn"
-              class="bg-indigo-600/50 hover:bg-indigo-600 text-gray-900 dark:text-white font-bold py-3 px-4 rounded-lg transition text-sm"
+              class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-lg transition text-sm"
             >
               Export Q&A Key (Word)
             </button>
@@ -2205,17 +2205,6 @@
         doc.text(titleLines, margin, y);
         y += titleLines.length * 9 + 4;
 
-        // Date
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(10);
-        const dateStr = new Date().toLocaleDateString("en-IN", {
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        });
-        doc.text(`Generated on: ${dateStr}`, margin, y);
-        y += 12;
-
         // Student sheet header
         if (isStudent) {
           doc.setFont("helvetica", "normal");
@@ -2336,12 +2325,6 @@
         const title =
           quizTitleInput.value.trim() || topicInput.value.trim() || "Quiz";
         const titleSuffix = isKey ? " (Answer Key)" : "";
-        const dateStr = new Date().toLocaleDateString("en-IN", {
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        });
-
         const children = [];
 
         // Title
@@ -2350,15 +2333,6 @@
             text: `Dream Centre: ${title}${titleSuffix}`,
             heading: docx.HeadingLevel.HEADING_1,
             spacing: { after: 200 },
-          }),
-        );
-
-        // Date
-        children.push(
-          new docx.Paragraph({
-            text: `Generated on: ${dateStr}`,
-            spacing: { after: isStudent ? 100 : 300 },
-            style: { run: { size: 18, color: "888888" } },
           }),
         );
 

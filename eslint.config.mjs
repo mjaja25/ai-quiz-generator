@@ -35,4 +35,27 @@ export default [
   {
     ignores: ["node_modules/", ".netlify/", "dist/"],
   },
+  // Vercel API functions (ESM)
+  {
+    files: ["api/**/*.js"],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: "module",
+      globals: {
+        console: "readonly",
+        process: "readonly",
+        fetch: "readonly",
+        AbortController: "readonly",
+        setTimeout: "readonly",
+        clearTimeout: "readonly",
+      },
+    },
+    rules: {
+      "no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
+      "no-console": ["warn", { allow: ["error", "warn"] }],
+      eqeqeq: "error",
+      "no-var": "error",
+      "prefer-const": "error",
+    },
+  },
 ];

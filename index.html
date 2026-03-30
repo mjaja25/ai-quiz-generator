@@ -1510,7 +1510,7 @@
 
         if (!isLocal) {
           response = await fetchWithRetry(
-            "/.netlify/functions/generate-quiz",
+            "/api/generate-quiz",
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },

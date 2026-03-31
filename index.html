@@ -1171,30 +1171,31 @@
           allText += sortedY.map((y) => lines[y].join(" ")).join("\n") + "\n";
         }
 
-        // Split by common question number patterns, then clean up each fragment
-        const parts = allText.split(
-          /(?:\n|^)\s*(\d+[\.\)]\s*|[A-Q]\d*[\.\)]\s*)/i,
-        );
+        // Split by question number patterns - capture the delimiter
+        const parts = allText.split(/(?=\n|^)\s*(\d{1,3}[\.\)]\s+)/);
         const questions = [];
 
-        for (const part of parts) {
-          if (!part || part.length < 5) continue;
+        for (let i = 0; i < parts.length; i++) {
+          const part = parts[i].trim();
+          // Skip if part is just a number or too short
+          if (!part || part.length < 20) continue;
 
-          let text = part
-            .replace(/\s+/g, " ")
-            .replace(/^[A-D][\.\)]\s*/gi, "")
-            .trim();
+          // Skip if it looks like just options (A) B) C) D))
+          if (
+            /^[A-D][\.\)]\s*[A-D][\.\)]\s*[A-D][\.\)]\s*[A-D][\.\)]/i.test(part)
+          )
+            continue;
 
-          // Remove trailing option lines (A) B) C) D) ...) if they leaked in
-          text = text.replace(/\s+[A-D][\.\)]\s+.+$/gi, "").trim();
+          // Remove leading question numbers from the text
+          let text = part.replace(/^\s*\d{1,3}[\.\)]\s+/, "");
 
-          // Skip if it looks like just options without a question
-          if (/^[A-D][\.\)]\s*$/i.test(text)) continue;
+          // Clean up whitespace
+          text = text.replace(/\s+/g, " ").trim();
 
-          // Skip very short text or text that looks like just option letters
-          if (text.length < 15 && /^[a-d]$/i.test(text)) continue;
-
-          if (text.length > 10) questions.push(text);
+          // Only keep if substantial
+          if (text.length > 15) {
+            questions.push(text);
+          }
         }
 
         return questions;

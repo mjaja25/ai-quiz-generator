@@ -559,7 +559,7 @@
           </div>
 
           <!-- Export Buttons -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div class="grid grid-cols-2 gap-3">
             <button
               id="exportQuestionsBtn"
               class="bg-green-600 hover:bg-green-700 text-gray-900 dark:text-white font-bold py-3 px-4 rounded-lg transition text-sm"
@@ -1173,7 +1173,11 @@
           if (!line) continue;
           const m = line.match(/^(\d{1,3})\s*[\.\)\-]\s+(.*)/);
           if (m) {
-            candidates.push({ lineIndex: i, num: parseInt(m[1], 10), rest: m[2] });
+            candidates.push({
+              lineIndex: i,
+              num: parseInt(m[1], 10),
+              rest: m[2],
+            });
           }
         }
 
@@ -1201,15 +1205,16 @@
 
         if (best.length === 0) return [];
 
-        console.log(`[QuizParser] Found ${best.length} question markers: ${best.map(b => b.num).join(", ")}`);
+        console.log(
+          `[QuizParser] Found ${best.length} question markers: ${best.map((b) => b.num).join(", ")}`,
+        );
 
         // --- Pass 3: Extract text blocks between question markers ---
         const rawQuestions = [];
         for (let qi = 0; qi < best.length; qi++) {
           const startLine = best[qi].lineIndex;
-          const endLine = qi + 1 < best.length
-            ? best[qi + 1].lineIndex
-            : lines.length;
+          const endLine =
+            qi + 1 < best.length ? best[qi + 1].lineIndex : lines.length;
 
           // Collect all lines for this question block
           let block = best[qi].rest + " ";
@@ -1230,7 +1235,7 @@
           // Matches patterns like "( ) A) ...", "(A) ...", "A) ...", "A. ..."
           // We remove from the FIRST occurrence of an option marker onward.
           const optionMatch = qText.match(
-            /\s(?:\(\s*\)\s*)?(?:\(?[A-Ea-e]\)?[\.\)])\s+/
+            /\s(?:\(\s*\)\s*)?(?:\(?[A-Ea-e]\)?[\.\)])\s+/,
           );
           if (optionMatch) {
             qText = qText.substring(0, optionMatch.index).trim();
@@ -1247,7 +1252,10 @@
           }
         }
 
-        console.log(`[QuizParser] Extracted ${finalQuestions.length} questions. First 3:`, finalQuestions.slice(0, 3));
+        console.log(
+          `[QuizParser] Extracted ${finalQuestions.length} questions. First 3:`,
+          finalQuestions.slice(0, 3),
+        );
         return finalQuestions;
       }
 

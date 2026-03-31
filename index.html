@@ -1123,27 +1123,7 @@
         const arrayBuffer = await file.arrayBuffer();
         const result = await window.mammoth.extractRawText({ arrayBuffer });
         const allText = result.value || "";
-
-        // Split by question number patterns, then clean up each fragment
-        const parts = allText.split(/\s*(?=\d+[\.\)]\s)/);
-        const questions = [];
-
-        for (const part of parts) {
-          const match = part.match(/^\d+[\.\)]\s+(.+)/);
-          if (!match) continue;
-
-          let text = match[1]
-            .replace(/\s+/g, " ")
-            .replace(/^[A-D][\.\)]\s*/g, "")
-            .trim();
-
-          // Remove trailing option lines (A) B) C) D) ...) if they leaked in
-          text = text.replace(/\s+[A-D][\.\)]\s+.+$/, "").trim();
-
-          if (text.length > 10) questions.push(text);
-        }
-
-        return questions;
+        return extractNumberedQuestions(allText);
       }
 
       async function parsePDFQuestions(file) {
@@ -1180,34 +1160,95 @@
           allText += "\n";
         }
 
-        // Clean up newlines for consistent matching
-        const cleanedText = allText.replace(/\r\n/g, "\n");
+        return extractNumberedQuestions(allText);
+      }
 
-        // Split by question number patterns e.g., "1.", "12)", " 3 . " at the start of a line
-        const matches = [
-          ...cleanedText.matchAll(
-            /(?:^|\n)\s*(\d{1,3})\s*[\.\)]\s+([\s\S]+?)(?=(?:^|\n)\s*\d{1,3}\s*[\.\)]\s+|$)/g
-          ),
-        ];
+      function extractNumberedQuestions(text) {
+        const lines = text.replace(/\r\n/g, "\n").split("\n");
 
-        const questions = [];
-
-        for (const match of matches) {
-          let text = match[2];
-
-          // Clean up whitespace
-          text = text.replace(/\s+/g, " ").trim();
-
-          // Remove trailing option lines (e.g., A., B), (C) ) if they leaked in
-          text = text.replace(/\s+(?:\([A-E]\)|[A-E][\.\)])\s+.+$/, "").trim();
-
-          // Only keep if substantial (avoids stray numbers or fragments)
-          if (text.length > 15) {
-            questions.push(text);
+        // --- Pass 1: Find ALL lines that start with a number ---
+        const candidates = []; // { lineIndex, num, restOfLine }
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (!line) continue;
+          const m = line.match(/^(\d{1,3})\s*[\.\)\-]\s+(.*)/);
+          if (m) {
+            candidates.push({ lineIndex: i, num: parseInt(m[1], 10), rest: m[2] });
           }
         }
 
-        return questions;
+        if (candidates.length === 0) return [];
+
+        // --- Pass 2: Find the best ascending subsequence ---
+        // Starting from candidate whose num === 1 (or the lowest), greedily
+        // pick candidates with strictly increasing numbers.  This automatically
+        // skips inner sub-items (e.g. "1. Presence of nominal…" inside Q4)
+        // because they would break the ascending order.
+        let best = [];
+        for (let startIdx = 0; startIdx < candidates.length; startIdx++) {
+          const chain = [candidates[startIdx]];
+          let lastNum = candidates[startIdx].num;
+          for (let j = startIdx + 1; j < candidates.length; j++) {
+            const c = candidates[j];
+            // Accept next number if it is greater than last and not wildly out of range
+            if (c.num > lastNum && c.num <= lastNum + 5) {
+              chain.push(c);
+              lastNum = c.num;
+            }
+          }
+          if (chain.length > best.length) best = chain;
+        }
+
+        if (best.length === 0) return [];
+
+        console.log(`[QuizParser] Found ${best.length} question markers: ${best.map(b => b.num).join(", ")}`);
+
+        // --- Pass 3: Extract text blocks between question markers ---
+        const rawQuestions = [];
+        for (let qi = 0; qi < best.length; qi++) {
+          const startLine = best[qi].lineIndex;
+          const endLine = qi + 1 < best.length
+            ? best[qi + 1].lineIndex
+            : lines.length;
+
+          // Collect all lines for this question block
+          let block = best[qi].rest + " ";
+          for (let li = startLine + 1; li < endLine; li++) {
+            const l = lines[li].trim();
+            if (l) block += l + " ";
+          }
+          rawQuestions.push(block);
+        }
+
+        // --- Pass 4: Clean each question block ---
+        const finalQuestions = [];
+        for (let qText of rawQuestions) {
+          // Normalize whitespace
+          qText = qText.replace(/\s+/g, " ").trim();
+
+          // Remove option lines using line-level approach:
+          // Matches patterns like "( ) A) ...", "(A) ...", "A) ...", "A. ..."
+          // We remove from the FIRST occurrence of an option marker onward.
+          const optionMatch = qText.match(
+            /\s(?:\(\s*\)\s*)?(?:\(?[A-Ea-e]\)?[\.\)])\s+/
+          );
+          if (optionMatch) {
+            qText = qText.substring(0, optionMatch.index).trim();
+          }
+
+          // Remove "Select the correct answer..." trailing instructions
+          qText = qText.replace(/\s+Select the correct answer.*$/i, "").trim();
+
+          // Remove "Page X of Y"
+          qText = qText.replace(/\s+Page\s+\d+\s+of\s+\d+\s*$/i, "").trim();
+
+          if (qText.length > 15) {
+            finalQuestions.push(qText);
+          }
+        }
+
+        console.log(`[QuizParser] Extracted ${finalQuestions.length} questions. First 3:`, finalQuestions.slice(0, 3));
+        return finalQuestions;
       }
 
       async function handleUpload(files) {

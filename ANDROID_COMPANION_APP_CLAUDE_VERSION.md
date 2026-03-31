@@ -1,396 +1,346 @@
-# Android Companion App V2 — Revised Plan (Claude Version)
+# DC Payment Monitor — Android Companion App
 
-> **This is a standalone plan document.** It does not modify `ANDROID_COMPANION_PLAN.md` or `REGISTRATION_IMPLEMENTATION.md`. This version focuses on solving critical high-priority limitations.
-
----
-
-## Problems This Plan Solves
-
-| # | Problem | Impact | Current Plan's Answer |
-|---|---------|--------|-----------------------|
-| 1 | **SMS not sent for UPI < ₹100** | HDFC already stopped SMS for <₹100 (since June 2024). Other banks are following. If exam fee is ₹50–₹99, the entire auto-detect pipeline is blind. | "Set minimum fee above ₹100" — not always feasible |
-| 2 | **Only detects bank SMS** | Students may pay via PhonePe, Paytm, BHIM, or any UPI app. The *teacher's* bank may send the SMS, but the format varies wildly. Some banks send push-only, no SMS at all. | Regex library for major banks — still misses push-only banks |
-| 3 | **Assumes student pays from own account** | A parent, friend, or sibling may pay on the student's behalf. Sender name won't match the registered student name. | Optional fuzzy name match — but this creates false negatives |
+> **Standalone Android Studio project.** Runs on the teacher's phone to auto-detect incoming UPI payments and confirm student registrations in real-time.
 
 ---
 
-## Core Architectural Change: Dual-Layer Detection
+## Quick Summary
 
-Instead of relying solely on SMS, we add **NotificationListenerService** as the **primary** detection layer and demote SMS to a **fallback/redundant** layer.
+**What it does:** Listens for incoming payment notifications from UPI apps (GPay, PhonePe, Paytm) on the teacher's phone, parses the amount, and POSTs it to the website's webhook. The website matches the unique amount to a pending registration and confirms it instantly.
 
-```
-                        ┌─────────────────────────┐
-                        │   Teacher's Phone        │
-                        │                          │
-  UPI Payment ──────►   │  ┌───────────────────┐   │
-  (any app)              │  │ NotificationListener│  │  ◄── PRIMARY (instant)
-                        │  │  (reads UPI app     │   │      Catches ALL payments
-                        │  │   push notifications)│  │      including <₹100
-                        │  └────────┬────────────┘   │
-                        │           │                │
-                        │  ┌────────▼────────────┐   │
-                        │  │   Dedup Engine       │   │  ◄── Prevents double-posting
-                        │  └────────┬────────────┘   │
-                        │           │                │
-  Bank SMS ──────────►  │  ┌────────▼────────────┐   │
-  (if amount ≥ ₹100)    │  │   SMS Receiver       │  │  ◄── FALLBACK (delayed)
-                        │  │   (existing V1)      │   │      Catches if notification
-                        │  └────────┬────────────┘   │      was missed
-                        │           │                │
-                        │  ┌────────▼────────────┐   │
-                        │  │  WebhookClient       │   │  ──► Netlify Webhook
-                        │  └─────────────────────┘   │
-                        └─────────────────────────┘
-```
+**Two detection channels:**
+1. **PRIMARY — UPI App Notifications** via `NotificationListenerService`. Catches ALL amounts including <₹100.
+2. **SECONDARY — Bank SMS** via `BroadcastReceiver`. Fallback for ≥₹100 transactions.
 
-### Why NotificationListenerService?
+**Deduplication** ensures if both channels fire for the same payment, only one webhook call is made.
 
-| Approach | Catches <₹100? | Catches all UPI apps? | Play Store OK? | Requires root? |
-|----------|:-:|:-:|:-:|:-:|
-| SMS BroadcastReceiver (V1) | ❌ | ❌ (bank SMS only) | ✅ | ❌ |
-| **NotificationListenerService (V2)** | **✅** | **✅** | **✅*** | **❌** |
-| AccessibilityService | ✅ | ✅ | ❌ (Play Store rejects) | ❌ |
-
-*\* NotificationListenerService is a legitimate Android API. Since we're sideloading (not on Play Store), policy is irrelevant anyway — but it's still the cleaner approach.*
-
-**Key advantages:**
-- UPI apps (Google Pay, PhonePe, Paytm, etc.) send push notifications for **every** transaction, including <₹100
-- We read the teacher's **UPI app** notifications instead of relying on unpredictable traditional bank notification systems
-- No dependency on SMS at all — works even if SMS is completely disabled
-- Works universally as long as the teacher uses a standard UPI app to receive payments
+**BatteryHelper** handles Xiaomi/Oppo/Vivo OEM restrictions that kill background services.
 
 ---
 
-## Revised Project Structure
+## Project Structure (Exact)
 
 ```
-android-companion/
-├── app/src/main/java/com/dreamcentre/companion/
-│   ├── MainActivity.kt              (MODIFIED — new UI toggle, status)
-│   ├── SmsReceiver.kt               (UNCHANGED)
-│   ├── ForegroundService.kt          (MODIFIED — starts NotificationListener)
-│   ├── SmsParser.kt                  (UNCHANGED)
-│   ├── NotificationMonitor.kt        (NEW — NotificationListenerService)
-│   ├── NotificationParser.kt         (NEW — parses UPI app notifications)
-│   ├── PaymentDeduplicator.kt        (NEW — prevents double webhook calls)
-│   ├── BatteryHelper.kt              (NEW — handles OEM background restrictions)
-│   ├── WebhookClient.kt              (MODIFIED — new payload fields)
-│   └── SettingsManager.kt            (MODIFIED — new prefs)
-├── app/src/main/res/xml/
-│   └── notification_listener_config.xml  (NEW)
-├── app/src/main/AndroidManifest.xml  (MODIFIED)
-└── ...
+dc-payment-monitor/
+├── app/
+│   ├── src/
+│   │   ├── main/
+│   │   │   ├── java/com/dreamcentre/companion/
+│   │   │   │   ├── MainActivity.kt
+│   │   │   │   ├── MonitorService.kt          (ForegroundService for SMS)
+│   │   │   │   ├── SmsReceiver.kt
+│   │   │   │   ├── SmsParser.kt
+│   │   │   │   ├── NotificationMonitor.kt     (NotificationListenerService)
+│   │   │   │   ├── NotificationParser.kt
+│   │   │   │   ├── PaymentDeduplicator.kt
+│   │   │   │   ├── WebhookClient.kt
+│   │   │   │   ├── BatteryHelper.kt
+│   │   │   │   ├── SettingsManager.kt
+│   │   │   │   └── ParsedPayment.kt           (data class)
+│   │   │   ├── res/
+│   │   │   │   ├── layout/activity_main.xml
+│   │   │   │   ├── drawable/ic_notification.xml
+│   │   │   │   └── values/
+│   │   │   │       ├── strings.xml
+│   │   │   │       ├── colors.xml
+│   │   │   │       └── themes.xml
+│   │   │   └── AndroidManifest.xml
+│   │   └── test/
+│   │       └── java/com/dreamcentre/companion/
+│   │           ├── SmsParserTest.kt
+│   │           └── NotificationParserTest.kt
+│   └── build.gradle.kts
+├── build.gradle.kts                           (project-level)
+├── settings.gradle.kts
+├── gradle.properties
+└── gradle/
+    └── wrapper/
+        └── gradle-wrapper.properties
 ```
 
-**Delta from V1: ~200 new lines Kotlin, ~30 lines modified**
+**Total: ~11 Kotlin files, ~650 lines Kotlin + ~200 lines XML**
 
 ---
 
-## New Components
-
-### 1. NotificationMonitor.kt (~80 lines)
-
-The primary payment detection layer. Extends `NotificationListenerService`.
-
-```kotlin
-class NotificationMonitor : NotificationListenerService() {
-
-    // We monitor the UPI apps the teacher uses to generate the QR code
-    private val targetApps = setOf(
-        "com.google.android.apps.nipay",   // Google Pay (GPay)
-        "com.phonepe.app",                 // PhonePe
-        "net.one97.paytm",                 // Paytm
-        "in.org.npci.upiapp",              // BHIM
-        "com.dreamplug.androidapp"         // Cred
-    )
-
-    override fun onNotificationPosted(sbn: StatusBarNotification) {
-        val pkg = sbn.packageName ?: return
-
-        // Only process notifications from targeted UPI apps
-        if (pkg !in targetApps) return
-
-        val extras = sbn.notification.extras ?: return
-        val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString() ?: ""
-        val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString() ?: ""
-        val bigText = extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString() ?: text
-
-        // Use the longer text for parsing (big text has full details)
-        val content = if (bigText.length > text.length) bigText else text
-
-        // Parse the notification
-        val parsed = NotificationParser.parse(pkg, title, content) ?: return
-
-        // Dedup check — skip if SMS already caught this
-        val dedup = PaymentDeduplicator.getInstance(applicationContext)
-        if (dedup.isDuplicate(parsed.amount, parsed.reference)) {
-            Log.d("NotificationMonitor", "Skipping duplicate: ${parsed.amount}")
-            return
-        }
-        dedup.record(parsed.amount, parsed.reference, source = "notification")
-
-        // POST to webhook
-        val settings = SettingsManager(applicationContext)
-        WebhookClient.post(
-            settings.getWebhookUrl(),
-            settings.getSecret(),
-            parsed,
-            source = "notification"
-        )
-    }
-
-    override fun onNotificationRemoved(sbn: StatusBarNotification) { /* no-op */ }
-}
-```
-
-**User setup required:** The teacher must go to **Settings → Notification Access** and enable "DC Payment Monitor". The app's MainActivity guides them through this with a one-tap deep link.
-
----
-
-### 2. NotificationParser.kt (~90 lines)
-
-Parses payment details from bank app push notifications.
-
-```kotlin
-object NotificationParser {
-
-    // UPI notification formats (title + body patterns)
-    // These are highly consistent across GPay, PhonePe, Paytm
-    private val creditPatterns = listOf(
-        // "₹507.32 received from Sunita" (PhonePe/GPay style)
-        Regex("""(?:Rs\.?|₹|INR)?\s*([\d,]+\.\d{2})\s*(?:received)""", RegexOption.IGNORE_CASE),
-        Regex("""(?:received|got)\s*(?:Rs\.?|₹|INR)?\s*([\d,]+\.\d{2})""", RegexOption.IGNORE_CASE),
-        // Fallback for full string
-        Regex("""(?:credit|credited).*?(?:Rs\.?|₹|INR)\s*([\d,]+\.\d{2})""", RegexOption.IGNORE_CASE)
-    )
-
-    private val upiRefPatterns = listOf(
-        Regex("""(?:UPI[/\-]?\s*)(\d{12})"""),
-        Regex("""(?:Ref(?:erence)?[:\s]*)(\d{10,16})"""),
-        Regex("""(?:UTR[:\s]*)(\d{10,16})"""),
-        Regex("""(?:Txn\s*(?:ID|No)?[:\s]*)(\d{10,16})"""),
-    )
-
-    private val senderPatterns = listOf(
-        Regex("""from\s+([A-Za-z\s]+?)(?:\s+UPI|\s+Ref|\s+via|\s*$)"""),
-        Regex("""by\s+([A-Za-z\s]+?)(?:\s*/|\s*UPI|\s*$)"""),
-        Regex("""VPA[:\s]+(\S+@\S+)"""),  // Capture VPA if name not available
-    )
-
-    // Negative filters — skip these notifications
-    private val skipKeywords = listOf(
-        "OTP", "do not share", "offer", "reward", "cashback",
-        "EMI", "loan", "insurance", "credit card", "bill pay",
-        "debited", "withdrawn", "transferred"  // <-- We only want CREDITS
-    )
-
-    fun parse(packageName: String, title: String, body: String): ParsedPayment? {
-        val fullText = "$title $body"
-
-        // Skip non-credit notifications
-        if (skipKeywords.any { fullText.contains(it, ignoreCase = true) }) return null
-
-        // Must contain a credit keyword
-        val hasCreditKeyword = listOf("credited", "received", "deposited", "credit")
-            .any { fullText.contains(it, ignoreCase = true) }
-        if (!hasCreditKeyword) return null
-
-        // Extract amount
-        val amount = creditPatterns.firstNotNullOfOrNull { 
-            it.find(fullText)?.groupValues?.get(1)?.replace(",", "") 
-        } ?: return null
-
-        // Extract reference (optional — some notifications don't include it)
-        val reference = upiRefPatterns.firstNotNullOfOrNull {
-            it.find(fullText)?.groupValues?.lastOrNull()
-        }
-
-        // Extract sender (optional)
-        val sender = senderPatterns.firstNotNullOfOrNull {
-            it.find(fullText)?.groupValues?.get(1)?.trim()
-        }
-
-        val appName = identifyApp(packageName)
-
-        return ParsedPayment(amount, reference, sender, appName)
-    }
-
-    private fun identifyApp(pkg: String): String = when {
-        pkg.contains("nipay") -> "GPay"
-        pkg.contains("phonepe") -> "PhonePe"
-        pkg.contains("paytm") -> "Paytm"
-        pkg.contains("upiapp") -> "BHIM"
-        pkg.contains("dreamplug") -> "Cred"
-        else -> "Unknown UPI App"
-    }
-}
-```
-
----
-
-### 3. PaymentDeduplicator.kt (~45 lines)
-
-Since both SMS and Notification layers may fire for the same payment, we need deduplication.
-
-```kotlin
-class PaymentDeduplicator private constructor(context: Context) {
-    
-    private val recentPayments = mutableMapOf<String, Long>()  // key → timestamp
-    private val DEDUP_WINDOW_MS = 5 * 60 * 1000L  // 5 minutes
-
-    companion object {
-        @Volatile private var instance: PaymentDeduplicator? = null
-        fun getInstance(context: Context) = instance ?: synchronized(this) {
-            instance ?: PaymentDeduplicator(context).also { instance = it }
-        }
-    }
-
-    /**
-     * Generate a dedup key from amount + reference.
-     * If reference is null, use amount + 2-minute time bucket.
-     */
-    private fun key(amount: String, reference: String?): String {
-        return if (reference != null) {
-            "ref:$reference"  // Best case: exact match by UTR
-        } else {
-            // Fallback: amount + 2-min time bucket
-            val bucket = System.currentTimeMillis() / (2 * 60 * 1000)
-            "amt:$amount:$bucket"
-        }
-    }
-
-    fun isDuplicate(amount: String, reference: String?): Boolean {
-        cleanup()
-        return recentPayments.containsKey(key(amount, reference))
-    }
-
-    fun record(amount: String, reference: String?, source: String) {
-        val k = key(amount, reference)
-        recentPayments[k] = System.currentTimeMillis()
-        Log.d("Dedup", "Recorded $source: $k")
-    }
-
-    private fun cleanup() {
-        val cutoff = System.currentTimeMillis() - DEDUP_WINDOW_MS
-        recentPayments.entries.removeAll { it.value < cutoff }
-    }
-}
-```
-
----
-
-### 4. BatteryHelper.kt (~60 lines)
-
-Chinese OEMs (Xiaomi, Oppo, Vivo) aggressively kill background services to save battery. Standard Android methods (like `ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS`) are often insufficient because these manufacturers use proprietary security/battery managers.
-
-This helper detects the device manufacturer and routes the teacher to the correct OEM-specific "AutoStart" or "Battery Manager" screen.
-
-```kotlin
-object BatteryHelper {
-
-    // Common intents for OEM-specific AutoStart / Battery managers
-    private val OEM_INTENTS = listOf(
-        // Xiaomi / POCO / Redmi
-        Intent().setComponent(ComponentName("com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity")),
-        // Oppo / OnePlus (ColorOS)
-        Intent().setComponent(ComponentName("com.coloros.safecenter", "com.coloros.safecenter.permission.startup.StartupAppListActivity")),
-        // Vivo (FuntouchOS)
-        Intent().setComponent(ComponentName("com.vivo.permissionmanager", "com.vivo.permissionmanager.activity.BgStartUpManagerActivity")),
-        // Huawei
-        Intent().setComponent(ComponentName("com.huawei.systemmanager", "com.huawei.systemmanager.startupmgr.ui.StartupNormalAppListActivity")),
-        // Samsung (though less aggressive, useful to have)
-        Intent().setComponent(ComponentName("com.samsung.android.lool", "com.samsung.android.sm.ui.battery.BatteryActivity"))
-    )
-
-    fun requestAutoStartPermission(context: Context) {
-        val manufacturer = android.os.Build.MANUFACTURER.lowercase()
-
-        // 1. Try standard Android Battery Optimization Intent first
-        try {
-            val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            context.startActivity(intent)
-        } catch (e: Exception) {
-            Log.e("BatteryHelper", "Standard intent failed", e)
-        }
-
-        // 2. Try OEM specific intent
-        for (intent in OEM_INTENTS) {
-            if (isCallable(context, intent)) {
-                try {
-                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    context.startActivity(intent)
-                    return // Opened successfully
-                } catch (e: Exception) {
-                    continue
-                }
-            }
-        }
-        
-        // 3. Fallback: ask user to do it manually if no intent worked
-        if (manufacturer in listOf("xiaomi", "oppo", "vivo", "redmi", "poco")) {
-            Toast.makeText(context, "Please enable AutoStart in your battery settings to prevent missed payments", Toast.LENGTH_LONG).show()
-        }
-    }
-
-    private fun isCallable(context: Context, intent: Intent): Boolean {
-        return context.packageManager.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY) != null
-    }
-}
-```
-
-**MainActivity UI Integration:** 
-Add a warning banner and button in `MainActivity` if the device is a known aggressive killer (Xiaomi/Oppo/Vivo). 
-*   **Prompt:** "Warning: Your phone may kill this app in the background. Tap here to whitelist it." 
-*   **Action:** Calls `BatteryHelper.requestAutoStartPermission(this)`.
-
----
-
-## Problem 2: Third-Party Payer Support
-
-### The Scenario
-
-> Rahul registers for the exam. His mother Sunita pays ₹507.32 from her own Google Pay.
-
-In V1, the webhook optionally matched `sender` name against the student's registered name. This would fail because the SMS/notification says "Sunita" not "Rahul".
-
-### The Fix: Match by Amount Only
-
-The unique amount strategy (e.g., base fee + random decimal) is used as the primary identifier.
-
-```
-1. Find PENDING registration where amount == webhook.amount (exact match)
-2. Verify time window (payment within 15 min of registration)
-3. Confirm registration regardless of sender name
-```
+## Implementation Order (Step-by-Step for Agent)
 
 > [!IMPORTANT]
-> The `sender` field from the webhook should be stored for audit purposes but NEVER used as a matching criterion. The unique amount is the sole identifier.
+> Each step below is a self-contained unit. Complete them in order. Each step lists the EXACT files to create and their COMPLETE contents.
+
+### Step 1: Project Scaffolding
+
+Create the Gradle build files. These define the project, SDK versions, and dependencies.
+
+**Files to create:**
+- `settings.gradle.kts`
+- `build.gradle.kts` (project-level)
+- `app/build.gradle.kts` (app-level)
+- `gradle.properties`
+- `gradle/wrapper/gradle-wrapper.properties`
+
+**Key config:**
+- `compileSdk = 34`, `minSdk = 26`, `targetSdk = 34`
+- `applicationId = "com.dreamcentre.companion"`
+- `versionCode = 1`, `versionName = "2.0"`
+- Dependencies: `okhttp:4.12.0`, `appcompat`, `material`, `core-ktx`
+- Kotlin JVM target: 17
 
 ---
 
-## Problem 3: Sub-₹100 SMS Blindspot
+### Step 2: Data Model
 
-### Why V2 Fixes This Completely
+Create `ParsedPayment.kt` — the shared data class used by both SMS and notification parsers.
 
-UPI apps (Google Pay, PhonePe, Paytm, etc.) send push notifications for **ALL** received payments—there is no minimum threshold for push notifications across these apps. This eliminates the ₹100 blindspot entirely without relying on flaky bank apps.
+```kotlin
+package com.dreamcentre.companion
+
+data class ParsedPayment(
+    val amount: String,
+    val reference: String?,
+    val sender: String?,
+    val source: String,           // "GPay", "PhonePe", "Paytm", "BHIM", "HDFC", "SBI", etc.
+    val detectionMethod: String,  // "notification" or "sms"
+    val timestamp: Long = System.currentTimeMillis()
+)
+```
 
 ---
 
-## Updated Known Limitations
+### Step 3: SettingsManager
 
-| Limitation | Impact | Status |
+SharedPreferences wrapper. Stores webhook URL, shared secret, and monitoring state.
+
+```kotlin
+package com.dreamcentre.companion
+
+import android.content.Context
+
+class SettingsManager(context: Context) {
+    private val prefs = context.getSharedPreferences("dc_companion", Context.MODE_PRIVATE)
+
+    fun getWebhookUrl(): String = prefs.getString("webhook_url", "") ?: ""
+    fun setWebhookUrl(url: String) = prefs.edit().putString("webhook_url", url).apply()
+
+    fun getSecret(): String = prefs.getString("secret", "") ?: ""
+    fun setSecret(secret: String) = prefs.edit().putString("secret", secret).apply()
+
+    fun isMonitoring(): Boolean = prefs.getBoolean("is_monitoring", false)
+    fun setMonitoring(active: Boolean) = prefs.edit().putBoolean("is_monitoring", active).apply()
+}
+```
+
+---
+
+### Step 4: PaymentDeduplicator
+
+Singleton that prevents double webhook calls when both SMS and notification fire for the same payment.
+
+**Logic:**
+- If reference (UTR) is available → dedup key = `ref:{UTR}`
+- If no reference → dedup key = `amt:{amount}:{2-min-bucket}`
+- Window = 5 minutes. After that, entries are cleaned up.
+
+---
+
+### Step 5: WebhookClient
+
+OkHttp-based POST client with HMAC-SHA256 authentication and 3x retry.
+
+**Webhook payload:**
+```json
+{
+  "amount": "507.32",
+  "reference": "430686551035",
+  "sender": "Rahul Sharma",
+  "source": "GPay",
+  "detectionMethod": "notification",
+  "timestamp": 1710249000000
+}
+```
+
+**Headers:** `X-Webhook-Secret`, `X-Webhook-Signature` (HMAC of body), `Content-Type: application/json`
+
+**Must run on a background thread** (use `Thread { ... }.start()` or coroutines).
+
+---
+
+### Step 6: SmsParser
+
+Parses bank credit SMS messages. This is the SECONDARY/FALLBACK channel.
+
+**Key functions:**
+- `isBankCreditSms(sender, body)` — checks sender ID against known bank sender codes (HDFCBK, SBIINB, ICICIB, AXISBK, KOTAKB, PNBSMS, etc.) and checks for "credited"/"received" keywords
+- `extractAmount(body)` — regex for `Rs.507.32 credited` patterns
+- `extractUpiRef(body)` — regex for 12-digit UPI ref numbers
+- `extractSenderName(body)` — regex for `from Rahul Sharma` patterns
+- `parse(smsSender, body)` → `ParsedPayment?`
+
+**Bank sender map:** HDFCBK→HDFC, SBIINB→SBI, ICICIB→ICICI, AXISBK→Axis, KOTAKB→Kotak, PNBSMS→PNB, BOIIND→BOI, CANBNK→Canara, UBOIB→Union
+
+---
+
+### Step 7: NotificationParser
+
+Parses UPI app push notifications. This is the PRIMARY channel.
+
+**UPI app package names:**
+```kotlin
+val upiApps = mapOf(
+    "com.google.android.apps.nbu.paisa.user" to "GPay",
+    "com.phonepe.app" to "PhonePe",
+    "net.one97.paytm" to "Paytm",
+    "in.org.npci.upiapp" to "BHIM",
+    "com.dreamplug.androidapp" to "Cred"
+)
+```
+
+**Key behavior:**
+- UPI apps use `₹` symbol in notifications (simpler than bank SMS)
+- GPay: title="You received ₹500", text="From Rahul Sharma"
+- PhonePe: title="Payment Received", text="₹500 received from Rahul"
+- Paytm: title="Money Received", text="₹500 received from Rahul@paytm"
+- Extract amount via `₹\s*([\d,]+(?:\.\d{2})?)` regex
+- Extract sender via `from\s+(.+?)(?:\s*$|\s*\(|\.$)` regex
+- Skip notifications containing: OTP, debited, withdrawn, offer, cashback
+
+---
+
+### Step 8: SmsReceiver
+
+BroadcastReceiver for `SMS_RECEIVED`. Registered dynamically in MonitorService.
+
+**Flow:** Receive SMS → check if bank credit SMS → parse → dedup check → webhook POST
+
+---
+
+### Step 9: NotificationMonitor
+
+Extends `NotificationListenerService`. System-managed (no ForegroundService needed).
+
+**Flow:** Notification arrives → check if from target UPI app → parse → dedup check → webhook POST
+
+**Uses `EXTRA_TITLE`, `EXTRA_TEXT`, `EXTRA_BIG_TEXT`** from notification extras.
+
+---
+
+### Step 10: MonitorService (ForegroundService)
+
+Keeps `SmsReceiver` alive. Shows persistent notification: "DC Payment Monitor — Listening for payments..."
+
+**Note:** `NotificationListenerService` is managed by the Android system independently. This ForegroundService only exists for the SMS channel.
+
+---
+
+### Step 11: BatteryHelper
+
+Routes teacher to OEM-specific AutoStart/Battery settings.
+
+**OEM intents:**
+- Xiaomi: `com.miui.securitycenter` → `AutoStartManagementActivity`
+- Oppo: `com.coloros.safecenter` → `StartupAppListActivity`
+- Vivo: `com.vivo.permissionmanager` → `BgStartUpManagerActivity`
+- Huawei: `com.huawei.systemmanager` → `StartupNormalAppListActivity`
+- Samsung: `com.samsung.android.lool` → `BatteryActivity`
+
+**Logic:** Try standard Android intent first → try OEM intent → show Toast fallback.
+
+---
+
+### Step 12: MainActivity
+
+Configuration screen with:
+- Webhook URL input field
+- Shared secret input field (password)
+- "Start Monitoring" / "Stop Monitoring" toggle button
+- "Test Connection" button
+- Notification access status + "Grant Access" button
+- SMS permission status
+- Last detected payment info
+- OEM battery warning banner (if Xiaomi/Oppo/Vivo detected)
+
+**On launch:** Check notification access via `Settings.Secure.getString(contentResolver, "enabled_notification_listeners")`. If not granted, show prominent warning.
+
+---
+
+### Step 13: AndroidManifest.xml
+
+**Permissions:**
+```xml
+<uses-permission android:name="android.permission.RECEIVE_SMS" />
+<uses-permission android:name="android.permission.READ_SMS" />
+<uses-permission android:name="android.permission.INTERNET" />
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+```
+
+**Components:**
+- `MainActivity` (launcher)
+- `MonitorService` (foreground, specialUse)
+- `NotificationMonitor` (notification listener service with `BIND_NOTIFICATION_LISTENER_SERVICE`)
+
+---
+
+### Step 14: Layout & Resources
+
+- `activity_main.xml` — Material Design 3 layout with TextInputLayouts, MaterialButtons, CardViews for status
+- `ic_notification.xml` — Simple vector drawable (payment/money icon)
+- `strings.xml`, `colors.xml`, `themes.xml`
+
+---
+
+### Step 15: Unit Tests
+
+- `SmsParserTest.kt` — Test HDFC, SBI, ICICI SMS formats; test OTP/promo filtering
+- `NotificationParserTest.kt` — Test GPay, PhonePe, Paytm notification formats; test debit filtering
+
+---
+
+## Build & Install
+
+1. Open `dc-payment-monitor/` in Android Studio
+2. Sync Gradle
+3. Build APK: Build → Build APK(s)
+4. Transfer to teacher's phone, install
+5. Open app → grant SMS permission → grant Notification Access
+6. Enter webhook URL + secret → tap "Start Monitoring"
+7. If Xiaomi/Oppo/Vivo: tap battery warning to whitelist app
+
+---
+
+## Testing
+
+### Simulate SMS (ADB):
+```bash
+adb shell service call isms 7 i32 0 s16 "com.android.mms.service" s16 "HDFCBK" s16 "null" s16 "Rs.507.32 credited to a/c XX1234 on 12-Mar-26 from Rahul Sharma UPI Ref 430686551035" i64 0 i64 0
+```
+
+### Test webhook directly:
+```bash
+curl -X POST https://your-site.netlify.app/api/payment-webhook \
+  -H "Content-Type: application/json" \
+  -H "X-Webhook-Secret: your-secret-here" \
+  -d '{"amount":"507.32","reference":"430686551035","sender":"Rahul Sharma","source":"GPay","detectionMethod":"notification","timestamp":1710249000000}'
+```
+
+---
+
+## Known Limitations
+
+| Limitation | Impact | Mitigation |
 |---|---|---|
-| SMS not sent for < ₹100 | Small amounts missed | **✅ FIXED** — Notification listener catches all amounts |
-| Only detects Google Pay | Other UPI apps missed | **✅ FIXED** — Detects payment via any UPI app (teacher-side) |
-| Sender name must match student | Third-party payments fail | **✅ FIXED** — Amount-only matching, sender stored for audit |
-| Background services killed by Chinese OEMs | App stops listening for payments | **✅ MITIGATED** — BatteryHelper directs user exactly to OEM AutoStart settings |
-| No iOS version | Teacher with iPhone can't use | Still manual fallback only |
+| No iOS version | Teacher with iPhone can't auto-detect | Manual admin confirmation fallback |
+| Some QR payments may not trigger GPay notification | Missed payment | SMS fallback + manual "I have paid" button |
+| Xiaomi/Oppo/Vivo kill background services | App stops | BatteryHelper + foreground service + exemption guide |
+| UPI app notification format changes | Parser breaks | Update regex patterns; manual fallback |
+| Third-party pays on behalf of student | Sender name mismatch | Amount-only matching (sender stored for audit, never used for matching) |
 
 ---
 
-## Testing Plan
+## Design Decisions
 
-1. **Unit Tests — NotificationParser:** Verify correct amount and reference extraction from GPay, PhonePe, and Paytm notification formats.
-2. **Integration Test — Deduplication:** Ensure that if both SMS and notification fire for the same payment, only one webhook call is made.
-3. **Manual Test — End to End:** Simulate UPI app notifications via ADB to verify the system's real-time response.
+1. **UPI app notifications over bank app notifications** — Bank apps (YONO, HDFC Mobile) do NOT reliably send push notifications for transactions. UPI apps (GPay, PhonePe) ALWAYS do.
+2. **Amount-only matching** — Sender name is never used as a matching criterion. Supports parents/friends paying on behalf of students.
+3. **Dedup by UTR first, amount-bucket second** — Prevents double webhook calls when both SMS and notification fire.
+4. **OkHttp over HttpURLConnection** — More reliable, built-in retry, cleaner API.
+5. **ForegroundService only for SMS** — NotificationListenerService is system-managed and doesn't need our service.

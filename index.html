@@ -602,7 +602,7 @@
 
     <script>
       // --- Constants ---
-      const API_TIMEOUT_MS = 30000;
+      const API_TIMEOUT_MS = 60000;
       const MAX_RETRIES = 2;
       const RETRY_DELAY_MS = 1000;
       let selectedModel = "gemini-2.5-flash";
@@ -1622,7 +1622,17 @@
           result = await response.json();
           if (!response.ok)
             throw new Error(result.error || `Error ${response.status}`);
-          return JSON.parse(result.data);
+          try {
+            return JSON.parse(result.data);
+          } catch (err) {
+            console.warn("Retrying JSON parse with sanitization...");
+            const clean = result.data.replace(/[\n\r\t]/g, (match) => {
+              if (match === '\n') return '\\n';
+              if (match === '\r') return '\\r';
+              return '\\t';
+            });
+            return JSON.parse(clean);
+          }
         } else {
           const apiKey = prompt("Enter your Gemini API key for local testing:");
           if (!apiKey)
@@ -1654,7 +1664,18 @@
             throw new Error(
               result.error?.message || `Error ${response.status}`,
             );
-          return JSON.parse(result.candidates[0].content.parts[0].text);
+          const rawText = result.candidates[0].content.parts[0].text;
+          try {
+            return JSON.parse(rawText);
+          } catch (err) {
+            console.warn("Retrying JSON parse with sanitization...");
+            const clean = rawText.replace(/[\n\r\t]/g, (match) => {
+              if (match === '\n') return '\\n';
+              if (match === '\r') return '\\r';
+              return '\\t';
+            });
+            return JSON.parse(clean);
+          }
         }
       }
 

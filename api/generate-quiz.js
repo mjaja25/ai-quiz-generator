@@ -1,7 +1,9 @@
 const DEFAULT_MODEL = "gemini-2.5-flash";
 const MAX_PROMPT_LENGTH = 8000;
 const MAX_QUESTIONS = 40;
-const API_TIMEOUT_MS = 25000;
+const API_TIMEOUT_MS = 55000;
+
+export const maxDuration = 60;
 
 export default async function handler(req, res) {
   // CORS

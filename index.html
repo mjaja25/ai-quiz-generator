@@ -1157,42 +1157,51 @@
           const page = await pdf.getPage(i);
           const content = await page.getTextContent();
 
-          // Group text items by y-coordinate to reconstruct lines
-          const lines = {};
-          for (const item of content.items) {
-            const y = Math.round((item.transform?.[5] || 0) / 2) * 2;
-            if (!lines[y]) lines[y] = [];
-            lines[y].push(item.str);
+          // Group and sort text items to reconstruct lines properly
+          const textItems = content.items.map((item) => ({
+            str: item.str,
+            x: item.transform?.[4] || 0,
+            y: Math.round((item.transform?.[5] || 0) / 4) * 4, // Group Y into 4px bands
+          }));
+
+          textItems.sort((a, b) => {
+            if (b.y !== a.y) return b.y - a.y; // Top to bottom (PDF origin is bottom-left)
+            return a.x - b.x; // Left to right
+          });
+
+          let lastY = null;
+          for (const item of textItems) {
+            if (lastY !== null && item.y !== lastY) {
+              allText += "\n";
+            }
+            allText += item.str + " ";
+            lastY = item.y;
           }
-          // Sort lines by y (descending for top-to-bottom reading) and join
-          const sortedY = Object.keys(lines)
-            .map(Number)
-            .sort((a, b) => b - a);
-          allText += sortedY.map((y) => lines[y].join(" ")).join("\n") + "\n";
+          allText += "\n";
         }
 
-        // Split by question number patterns - capture the delimiter
-        const parts = allText.split(/(?=\n|^)\s*(\d{1,3}[\.\)]\s+)/);
+        // Clean up newlines for consistent matching
+        const cleanedText = allText.replace(/\r\n/g, "\n");
+
+        // Split by question number patterns e.g., "1.", "12)", " 3 . " at the start of a line
+        const matches = [
+          ...cleanedText.matchAll(
+            /(?:^|\n)\s*(\d{1,3})\s*[\.\)]\s+([\s\S]+?)(?=(?:^|\n)\s*\d{1,3}\s*[\.\)]\s+|$)/g
+          ),
+        ];
+
         const questions = [];
 
-        for (let i = 0; i < parts.length; i++) {
-          const part = parts[i].trim();
-          // Skip if part is just a number or too short
-          if (!part || part.length < 20) continue;
-
-          // Skip if it looks like just options (A) B) C) D))
-          if (
-            /^[A-D][\.\)]\s*[A-D][\.\)]\s*[A-D][\.\)]\s*[A-D][\.\)]/i.test(part)
-          )
-            continue;
-
-          // Remove leading question numbers from the text
-          let text = part.replace(/^\s*\d{1,3}[\.\)]\s+/, "");
+        for (const match of matches) {
+          let text = match[2];
 
           // Clean up whitespace
           text = text.replace(/\s+/g, " ").trim();
 
-          // Only keep if substantial
+          // Remove trailing option lines (e.g., A., B), (C) ) if they leaked in
+          text = text.replace(/\s+(?:\([A-E]\)|[A-E][\.\)])\s+.+$/, "").trim();
+
+          // Only keep if substantial (avoids stray numbers or fragments)
           if (text.length > 15) {
             questions.push(text);
           }

@@ -916,12 +916,7 @@
       addQuestionBtn.addEventListener("click", addBlankQuestion);
 
       // Dropzone: click to upload
-      dropzone.addEventListener("click", async () => {
-        try {
-          await Promise.all([ensurePDFJS(), ensureMammoth()]);
-        } catch {
-          /* libraries may already be loaded or CDN unavailable */
-        }
+      dropzone.addEventListener("click", () => {
         avoidFileInput.click();
       });
       avoidFileInput.addEventListener("change", (e) => {
@@ -937,14 +932,9 @@
       dropzone.addEventListener("dragleave", () => {
         dropzone.classList.remove("border-blue-500", "bg-blue-900/20");
       });
-      dropzone.addEventListener("drop", async (e) => {
+      dropzone.addEventListener("drop", (e) => {
         e.preventDefault();
         dropzone.classList.remove("border-blue-500", "bg-blue-900/20");
-        try {
-          await Promise.all([ensurePDFJS(), ensureMammoth()]);
-        } catch {
-          /* libraries may already be loaded or CDN unavailable */
-        }
         if (e.dataTransfer.files.length) handleUpload(e.dataTransfer.files);
       });
 
@@ -1200,6 +1190,11 @@
       }
 
       async function handleUpload(files) {
+        try {
+          await Promise.all([ensurePDFJS(), ensureMammoth()]);
+        } catch {
+          /* libraries may already be loaded or CDN unavailable */
+        }
         for (const file of files) {
           try {
             let questions = [];

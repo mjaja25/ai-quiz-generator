@@ -435,14 +435,14 @@
             </div>
             <div
               id="dropzone"
-              title="Upload past quiz files (JSON or PDF). The AI will avoid generating similar questions."
+              title="Upload past quiz files (PDF or Word). The AI will avoid generating similar questions."
               class="border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-blue-500 rounded-lg p-4 text-center cursor-pointer transition-colors"
             >
               <input
                 type="file"
                 id="avoidFileInput"
                 multiple
-                accept=".json,.pdf"
+                accept=".pdf,.docx"
                 class="hidden"
               />
               <p class="text-sm text-gray-400 dark:text-gray-500">
@@ -450,7 +450,7 @@
                 <span class="text-blue-400 underline">click to upload</span>
               </p>
               <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                Accepts JSON and PDF exports
+                Accepts PDF and Word (.docx) exports
               </p>
             </div>
             <div id="uploadedFilesList" class="flex flex-wrap gap-2 mt-2"></div>
@@ -557,12 +557,6 @@
           <!-- Export Buttons -->
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <button
-              id="exportStudentSheetBtn"
-              class="bg-yellow-600 hover:bg-yellow-700 text-gray-900 dark:text-white font-bold py-3 px-4 rounded-lg transition text-sm"
-            >
-              Export Student Sheet (PDF)
-            </button>
-            <button
               id="exportQuestionsBtn"
               class="bg-green-600 hover:bg-green-700 text-gray-900 dark:text-white font-bold py-3 px-4 rounded-lg transition text-sm"
             >
@@ -573,12 +567,6 @@
               class="bg-indigo-600 hover:bg-indigo-700 text-gray-900 dark:text-white font-bold py-3 px-4 rounded-lg transition text-sm"
             >
               Export Q&A Key (PDF)
-            </button>
-            <button
-              id="exportWordStudentBtn"
-              class="bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-4 rounded-lg transition text-sm"
-            >
-              Export Student Sheet (Word)
             </button>
             <button
               id="exportWordQuestionsBtn"
@@ -592,29 +580,6 @@
             >
               Export Q&A Key (Word)
             </button>
-            <button
-              id="copyTextBtn"
-              class="bg-gray-200 dark:bg-gray-600 hover:bg-gray-500 text-gray-900 dark:text-white font-bold py-3 px-4 rounded-lg transition text-sm"
-            >
-              Copy as Text
-            </button>
-            <button
-              id="exportJsonBtn"
-              class="bg-gray-200 dark:bg-gray-600 hover:bg-gray-500 text-gray-900 dark:text-white font-bold py-3 px-4 rounded-lg transition text-sm"
-            >
-              Save Quiz (JSON)
-            </button>
-            <label
-              class="bg-gray-200 dark:bg-gray-600 hover:bg-gray-500 text-gray-900 dark:text-white font-bold py-3 px-4 rounded-lg transition text-sm text-center cursor-pointer"
-            >
-              Load Quiz (JSON)
-              <input
-                type="file"
-                id="importJsonInput"
-                accept=".json"
-                class="hidden"
-              />
-            </label>
           </div>
         </div>
       </div>
@@ -891,6 +856,24 @@
         });
       }
 
+      // --- Lazy-load mammoth.js (Word docx parsing) ---
+      let mammothLoaded = false;
+      function ensureMammoth() {
+        if (mammothLoaded) return Promise.resolve();
+        return new Promise((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src =
+            "https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.9.1/mammoth.browser.min.js";
+          script.onload = () => {
+            mammothLoaded = true;
+            resolve();
+          };
+          script.onerror = () =>
+            reject(new Error("Failed to load Word library"));
+          document.head.appendChild(script);
+        });
+      }
+
       // --- Topic chip listeners ---
       document.querySelectorAll("[data-topic]").forEach((chip) => {
         chip.addEventListener("click", () => {
@@ -922,26 +905,11 @@
         .getElementById("exportAnswersBtn")
         .addEventListener("click", () => exportPDF("key"));
       document
-        .getElementById("exportStudentSheetBtn")
-        .addEventListener("click", () => exportPDF("student"));
-      document
         .getElementById("exportWordQuestionsBtn")
         .addEventListener("click", () => exportWord("questions"));
       document
-        .getElementById("exportWordStudentBtn")
-        .addEventListener("click", () => exportWord("student"));
-      document
         .getElementById("exportWordKeyBtn")
         .addEventListener("click", () => exportWord("key"));
-      document
-        .getElementById("copyTextBtn")
-        .addEventListener("click", copyAsText);
-      document
-        .getElementById("exportJsonBtn")
-        .addEventListener("click", exportJSON);
-      document
-        .getElementById("importJsonInput")
-        .addEventListener("change", importJSON);
       toggleSelectAllBtn.addEventListener("click", toggleSelectAll);
       deleteSelectedBtn.addEventListener("click", deleteSelected);
       regenerateAllBtn.addEventListener("click", handleGenerate);
@@ -950,9 +918,9 @@
       // Dropzone: click to upload
       dropzone.addEventListener("click", async () => {
         try {
-          await ensurePDFJS();
+          await Promise.all([ensurePDFJS(), ensureMammoth()]);
         } catch {
-          /* pdf.js may already be loaded or CDN unavailable */
+          /* libraries may already be loaded or CDN unavailable */
         }
         avoidFileInput.click();
       });
@@ -973,9 +941,9 @@
         e.preventDefault();
         dropzone.classList.remove("border-blue-500", "bg-blue-900/20");
         try {
-          await ensurePDFJS();
+          await Promise.all([ensurePDFJS(), ensureMammoth()]);
         } catch {
-          /* pdf.js may already be loaded or CDN unavailable */
+          /* libraries may already be loaded or CDN unavailable */
         }
         if (e.dataTransfer.files.length) handleUpload(e.dataTransfer.files);
       });
@@ -1043,16 +1011,6 @@
         if (e.key === "Enter") {
           e.preventDefault();
           if (!isGenerating) handleGenerate();
-        }
-        // Ctrl+S: save JSON (skip if focused on input/textarea)
-        if (
-          e.key === "s" &&
-          tag !== "INPUT" &&
-          tag !== "TEXTAREA" &&
-          tag !== "SELECT"
-        ) {
-          e.preventDefault();
-          exportJSON();
         }
         // Ctrl+E: export Q&A Key (skip if focused on input/textarea)
         if (
@@ -1166,12 +1124,32 @@
       }
 
       // --- Upload: Previous Questions (anti-duplicate) ---
-      function parseJSONQuestions(text) {
-        const data = JSON.parse(text);
-        const questions = Array.isArray(data) ? data : data.questions || [];
-        return questions
-          .map((q) => (typeof q.question === "string" ? q.question.trim() : ""))
-          .filter((q) => q.length > 0);
+      async function parseWordQuestions(file) {
+        if (!window.mammoth) throw new Error("Word library not loaded");
+        const arrayBuffer = await file.arrayBuffer();
+        const result = await window.mammoth.extractRawText({ arrayBuffer });
+        const allText = result.value || "";
+
+        // Split by question number patterns, then clean up each fragment
+        const parts = allText.split(/\s*(?=\d+[\.\)]\s)/);
+        const questions = [];
+
+        for (const part of parts) {
+          const match = part.match(/^\d+[\.\)]\s+(.+)/);
+          if (!match) continue;
+
+          let text = match[1]
+            .replace(/\s+/g, " ")
+            .replace(/^[A-D][\.\)]\s*/g, "")
+            .trim();
+
+          // Remove trailing option lines (A) B) C) D) ...) if they leaked in
+          text = text.replace(/\s+[A-D][\.\)]\s+.+$/, "").trim();
+
+          if (text.length > 10) questions.push(text);
+        }
+
+        return questions;
       }
 
       async function parsePDFQuestions(file) {
@@ -1225,9 +1203,8 @@
         for (const file of files) {
           try {
             let questions = [];
-            if (file.name.endsWith(".json")) {
-              const text = await file.text();
-              questions = parseJSONQuestions(text);
+            if (file.name.endsWith(".docx")) {
+              questions = await parseWordQuestions(file);
             } else if (file.name.endsWith(".pdf")) {
               questions = await parsePDFQuestions(file);
             } else {
@@ -2264,7 +2241,6 @@
 
         const selected = selectedIndices.map((i) => generatedData[i]);
         const isKey = mode === "key";
-        const isStudent = mode === "student";
         const title =
           quizTitleInput.value.trim() || topicInput.value.trim() || "Quiz";
 
@@ -2303,17 +2279,6 @@
         doc.text(titleLines, margin, y);
         y += titleLines.length * 9 + 4;
 
-        // Student sheet header
-        if (isStudent) {
-          doc.setFont("helvetica", "normal");
-          doc.setFontSize(12);
-          doc.text("Name: ____________________________", margin, y);
-          doc.text("Date: ______________", margin + 110, y);
-          y += 8;
-          doc.text("Score: ______ / " + selected.length, margin, y);
-          y += 12;
-        }
-
         doc.setFont("helvetica", "normal");
         doc.setFontSize(fontSize);
 
@@ -2334,16 +2299,7 @@
               maxWidth - 15,
             );
             checkPageBreak(optText.length * lineHeight);
-            if (isStudent) {
-              // Student sheet: circles for answers
-              doc.text("( ) " + optText[0], margin + optionIndent, y);
-              for (let li = 1; li < optText.length; li++) {
-                y += lineHeight;
-                doc.text("    " + optText[li], margin + optionIndent, y);
-              }
-            } else {
-              doc.text(optText, margin + optionIndent, y);
-            }
+            doc.text(optText, margin + optionIndent, y);
             y += optText.length * lineHeight + 1;
           });
 
@@ -2403,7 +2359,7 @@
         // Filename
         const safeName = title.replace(/[^a-zA-Z0-9]/g, "_").substring(0, 30);
         const dateFile = new Date().toISOString().split("T")[0];
-        const suffix = isKey ? "Key" : isStudent ? "StudentSheet" : "Questions";
+        const suffix = isKey ? "Key" : "Questions";
         doc.save(`DreamCentre_${safeName}_${dateFile}_${suffix}.pdf`);
       }
 
@@ -2419,7 +2375,6 @@
 
         const selected = selectedIndices.map((i) => generatedData[i]);
         const isKey = mode === "key";
-        const isStudent = mode === "student";
         const title =
           quizTitleInput.value.trim() || topicInput.value.trim() || "Quiz";
         const titleSuffix = isKey ? " (Answer Key)" : "";
@@ -2433,36 +2388,6 @@
             spacing: { after: 200 },
           }),
         );
-
-        // Student sheet header
-        if (isStudent) {
-          children.push(
-            new docx.Paragraph({
-              children: [
-                new docx.TextRun({ text: "Name: ", bold: true, size: 22 }),
-                new docx.TextRun({
-                  text: "______________________________",
-                  size: 22,
-                }),
-                new docx.TextRun({ text: "    Date: ", bold: true, size: 22 }),
-                new docx.TextRun({ text: "______________", size: 22 }),
-              ],
-              spacing: { after: 100 },
-            }),
-          );
-          children.push(
-            new docx.Paragraph({
-              children: [
-                new docx.TextRun({ text: "Score: ", bold: true, size: 22 }),
-                new docx.TextRun({
-                  text: `______ / ${selected.length}`,
-                  size: 22,
-                }),
-              ],
-              spacing: { after: 300 },
-            }),
-          );
-        }
 
         // Questions
         selected.forEach((q, i) => {
@@ -2480,26 +2405,13 @@
           // Options
           q.options.forEach((opt, oi) => {
             const letter = String.fromCharCode(65 + oi);
-            if (isStudent) {
-              children.push(
-                new docx.Paragraph({
-                  children: [
-                    new docx.TextRun({ text: "( ) ", size: 22 }),
-                    new docx.TextRun({ text: `${letter}) ${opt}`, size: 22 }),
-                  ],
-                  indent: { left: 360 },
-                  spacing: { after: 60 },
-                }),
-              );
-            } else {
-              children.push(
-                new docx.Paragraph({
-                  children: [new docx.TextRun({ text: `${letter}) ${opt}` })],
-                  indent: { left: 360 },
-                  spacing: { after: 60 },
-                }),
-              );
-            }
+            children.push(
+              new docx.Paragraph({
+                children: [new docx.TextRun({ text: `${letter}) ${opt}` })],
+                indent: { left: 360 },
+                spacing: { after: 60 },
+              }),
+            );
           });
 
           // Answer (key mode)
@@ -2567,88 +2479,11 @@
           const a = document.createElement("a");
           a.href = url;
           const safeName = title.replace(/[^a-zA-Z0-9]/g, "_").substring(0, 30);
-          const suffix = isKey
-            ? "Key"
-            : isStudent
-              ? "StudentSheet"
-              : "Questions";
+          const suffix = isKey ? "Key" : "Questions";
           a.download = `DreamCentre_${safeName}_${suffix}.docx`;
           a.click();
           URL.revokeObjectURL(url);
         });
-      }
-
-      // --- Export: Copy as Text ---
-      function copyAsText() {
-        const selectedIndices = getCheckedIndices();
-        if (selectedIndices.length === 0)
-          return showError("Select at least one question.");
-
-        const lines = selectedIndices.map((idx, i) => {
-          const q = generatedData[idx];
-          let text = `${i + 1}. ${q.question}`;
-          q.options.forEach((opt, oi) => {
-            text += `\n   ${String.fromCharCode(65 + oi)}) ${opt}`;
-          });
-          text += `\n   Answer: ${q.answer}`;
-          return text;
-        });
-
-        navigator.clipboard
-          .writeText(lines.join("\n\n"))
-          .then(() => {
-            showToast("Copied to clipboard!");
-          })
-          .catch(() => {
-            showError("Failed to copy. Try again.");
-          });
-      }
-
-      // --- Export: JSON ---
-      function exportJSON() {
-        if (generatedData.length === 0)
-          return showError("No questions to save.");
-        const payload = generatedData;
-        const blob = new Blob([JSON.stringify(payload, null, 2)], {
-          type: "application/json",
-        });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        const title =
-          quizTitleInput.value.trim() || topicInput.value.trim() || "Quiz";
-        const safeName = title.replace(/[^a-zA-Z0-9]/g, "_").substring(0, 30);
-        a.download = `DreamCentre_${safeName}_${new Date().toISOString().split("T")[0]}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-        showToast("Quiz saved!");
-      }
-
-      // --- Import: JSON ---
-      function importJSON(e) {
-        const file = e.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          try {
-            const data = JSON.parse(ev.target.result);
-            if (!Array.isArray(data.questions))
-              throw new Error("Invalid format: missing questions array.");
-            generatedData = data.questions;
-            rejectedQuestions = [];
-            lastGeneratedTopic = "";
-            if (data.title) quizTitleInput.value = data.title;
-
-            if (data.difficulty) difficultySelect.value = data.difficulty;
-            displayResults();
-            resultsDiv.scrollIntoView({ behavior: "smooth", block: "start" });
-            showToast(`Loaded ${generatedData.length} questions!`);
-          } catch (err) {
-            showError("Failed to load file: " + err.message);
-          }
-        };
-        reader.readAsText(file);
-        e.target.value = "";
       }
 
       // --- Error helpers ---

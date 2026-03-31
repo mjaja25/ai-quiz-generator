@@ -1115,9 +1115,9 @@
       }
 
       function getCheckedIndices() {
-        return Array.from(document.querySelectorAll(".q-check:checked")).map(
-          (c) => parseInt(c.dataset.index, 10),
-        );
+        return generatedData
+          .map((item, index) => item.selected !== false ? index : -1)
+          .filter((i) => i !== -1);
       }
 
       // --- Upload: Previous Questions (anti-duplicate) ---
@@ -1697,8 +1697,14 @@
           rejectedQuestions = [];
         }
 
+        const requestedQuestions = parseInt(numQuestionsInput.value, 10) || 5;
+        if (requestedQuestions > 40) {
+          showError("Maximum allowed questions is 40. Please reduce the number to 40 or fewer.");
+          return;
+        }
+
         const numQuestions = Math.min(
-          Math.max(parseInt(numQuestionsInput.value, 10) || 5, 1),
+          Math.max(requestedQuestions, 1),
           40,
         );
 
@@ -1952,6 +1958,7 @@
           options: Array.isArray(item.options) ? item.options.map(decode) : [],
           answer: decode(item.answer),
           explanation: decode(item.explanation || ""),
+          selected: item.selected !== false,
         };
       }
 
@@ -1996,11 +2003,14 @@
 
           const checkbox = document.createElement("input");
           checkbox.type = "checkbox";
-          checkbox.checked = true;
+          checkbox.checked = norm.selected;
           checkbox.dataset.index = index;
           checkbox.className =
             "q-check w-4 h-4 rounded bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-blue-500";
-          checkbox.addEventListener("change", updateSelectedCount);
+          checkbox.addEventListener("change", (e) => {
+            generatedData[index].selected = e.target.checked;
+            updateSelectedCount();
+          });
           headerLeft.appendChild(checkbox);
 
           const qNum = document.createElement("span");
@@ -2321,12 +2331,11 @@
 
       // --- Selected count ---
       function updateSelectedCount() {
-        const total = document.querySelectorAll(".q-check").length;
-        const checked = document.querySelectorAll(".q-check:checked").length;
+        const total = generatedData.length;
+        const checked = generatedData.filter(item => item.selected !== false).length;
         selectedCountSpan.textContent = `${checked} of ${total} selected`;
         toggleSelectAllBtn.textContent =
           checked === total ? "Deselect All" : "Select All";
-        // Show delete selected when some but not all are selected
         if (checked > 0 && checked < total) {
           deleteSelectedBtn.classList.remove("hidden");
         } else {
@@ -2335,9 +2344,19 @@
       }
 
       function toggleSelectAll() {
-        const checks = document.querySelectorAll(".q-check");
-        const allChecked = Array.from(checks).every((c) => c.checked);
-        checks.forEach((c) => (c.checked = !allChecked));
+        const total = generatedData.length;
+        const checkedCount = generatedData.filter(item => item.selected !== false).length;
+        const allChecked = checkedCount === total;
+        
+        generatedData.forEach(item => {
+          item.selected = !allChecked;
+        });
+        
+        document.querySelectorAll(".q-check").forEach((c) => {
+           const idx = parseInt(c.dataset.index, 10);
+           c.checked = generatedData[idx].selected;
+        });
+        
         updateSelectedCount();
       }
 

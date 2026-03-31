@@ -302,6 +302,9 @@
                 min="1"
                 max="20"
               />
+              <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                Max: 20 questions
+              </p>
             </div>
             <div>
               <label
@@ -448,6 +451,7 @@
               <p class="text-sm text-gray-400 dark:text-gray-500">
                 Drag & drop quiz files here, or
                 <span class="text-blue-400 underline">click to upload</span>
+                (Max 5 files)
               </p>
               <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">
                 Accepts PDF and Word (.docx) exports
@@ -1190,12 +1194,26 @@
       }
 
       async function handleUpload(files) {
+        const MAX_AVOID_FILES = 5;
+        const remainingSlots = MAX_AVOID_FILES - uploadedFiles.length;
+        if (remainingSlots <= 0) {
+          showToast(
+            `Maximum ${MAX_AVOID_FILES} files allowed for avoiding questions`,
+          );
+          return;
+        }
+        const filesToProcess = files.slice(0, remainingSlots);
+        if (files.length > remainingSlots) {
+          showToast(
+            `Only ${remainingSlots} more file(s) allowed. Max ${MAX_AVOID_FILES} files.`,
+          );
+        }
         try {
           await Promise.all([ensurePDFJS(), ensureMammoth()]);
         } catch {
           /* libraries may already be loaded or CDN unavailable */
         }
-        for (const file of files) {
+        for (const file of filesToProcess) {
           try {
             let questions = [];
             if (file.name.endsWith(".docx")) {

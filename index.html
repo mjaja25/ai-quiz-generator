@@ -300,10 +300,10 @@
                 class="w-full bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg p-3"
                 value="5"
                 min="1"
-                max="20"
+                max="40"
               />
               <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                Max: 20 questions
+                Max: 40 questions
               </p>
             </div>
             <div>
@@ -550,6 +550,7 @@
               </div>
             </div>
             <div id="questionsList" class="space-y-4"></div>
+            <div id="paginationControls" class="flex justify-center items-center gap-4 mt-6"></div>
             <button
               id="addQuestionBtn"
               class="mt-4 w-full border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-gray-500 text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:text-gray-300 py-3 rounded-lg transition"
@@ -699,6 +700,8 @@
       let lastGeneratedTopic = "";
       let lastDeleted = null; // { item, index } for single or [{ item, index }] for bulk
       let lastAvoidStats = null; // { included, total } after mergeAvoidList
+      let currentPage = 1;
+      const QUESTIONS_PER_PAGE = 10;
 
       // --- DOM refs ---
       const generateBtn = document.getElementById("generateBtn");
@@ -1404,6 +1407,7 @@
         if (modifier) prompt += ` Instructions: ${modifier}.`;
         prompt += ` Each question must have exactly ${numOpts} options.`;
         prompt += ` Include a brief "explanation" for each answer explaining why it is correct.`;
+        prompt += ` Ensure wide coverage of the topic. Every question must test a completely distinct concept, and no two questions should be similar.`;
         prompt += ` Format strictly as JSON: [{ "question": "string", "options": [${optionsSchema}], "answer": "correct_option_text", "explanation": "brief explanation of the correct answer" }]`;
 
         prompt = mergeAvoidList(prompt, []);
@@ -1674,7 +1678,7 @@
 
         const numQuestions = Math.min(
           Math.max(parseInt(numQuestionsInput.value, 10) || 5, 1),
-          20,
+          40,
         );
 
         hideError();
@@ -1718,6 +1722,7 @@
           saveFormState();
           lastGeneratedTopic = topic;
           lastDeleted = null;
+          currentPage = 1;
           displayResults();
           resultsDiv.scrollIntoView({ behavior: "smooth", block: "start" });
           // Warn if avoid list was truncated
@@ -1933,10 +1938,19 @@
       function displayResults() {
         questionsList.innerHTML = "";
 
+        const totalPages = Math.ceil(generatedData.length / QUESTIONS_PER_PAGE);
+        if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+        
+        const startIndex = (currentPage - 1) * QUESTIONS_PER_PAGE;
+        const endIndex = startIndex + QUESTIONS_PER_PAGE;
+
         generatedData.forEach((item, index) => {
           // Normalize on each render
           const norm = normalizeItem(item);
           generatedData[index] = norm;
+
+          if (index < startIndex || index >= endIndex) return;
 
           const card = document.createElement("div");
           card.className =
@@ -2179,6 +2193,8 @@
           questionsList.appendChild(card);
         });
 
+        renderPaginationControls(totalPages);
+
         resultsDiv.classList.remove("hidden");
 
         // Auto-resize all textareas after DOM is painted
@@ -2190,6 +2206,39 @@
 
         updateSelectedCount();
         initDragAndDrop();
+      }
+
+      function renderPaginationControls(totalPages) {
+        const controls = document.getElementById("paginationControls");
+        if (!controls) return;
+        controls.innerHTML = "";
+        
+        if (totalPages <= 1) {
+          controls.classList.add("hidden");
+          return;
+        }
+        
+        controls.classList.remove("hidden");
+
+        const prevBtn = document.createElement("button");
+        prevBtn.className = "px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition";
+        prevBtn.textContent = "Previous";
+        prevBtn.disabled = currentPage === 1;
+        prevBtn.onclick = () => { currentPage--; displayResults(); resultsDiv.scrollIntoView({ behavior: "smooth", block: "start" }); };
+
+        const pageInfo = document.createElement("span");
+        pageInfo.className = "text-sm font-medium text-gray-700 dark:text-gray-300";
+        pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+
+        const nextBtn = document.createElement("button");
+        nextBtn.className = "px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition";
+        nextBtn.textContent = "Next";
+        nextBtn.disabled = currentPage === totalPages;
+        nextBtn.onclick = () => { currentPage++; displayResults(); resultsDiv.scrollIntoView({ behavior: "smooth", block: "start" }); };
+
+        controls.appendChild(prevBtn);
+        controls.appendChild(pageInfo);
+        controls.appendChild(nextBtn);
       }
 
       function autoResize(textarea) {

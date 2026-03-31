@@ -1195,6 +1195,7 @@
 
       async function handleUpload(files) {
         console.log("handleUpload called with", files.length, "files");
+        const filesArray = Array.from(files);
         const MAX_AVOID_FILES = 5;
         const remainingSlots = MAX_AVOID_FILES - uploadedFiles.length;
         if (remainingSlots <= 0) {
@@ -1203,8 +1204,8 @@
           );
           return;
         }
-        const filesToProcess = files.slice(0, remainingSlots);
-        if (files.length > remainingSlots) {
+        const filesToProcess = filesArray.slice(0, remainingSlots);
+        if (filesArray.length > remainingSlots) {
           showToast(
             `Only ${remainingSlots} more file(s) allowed. Max ${MAX_AVOID_FILES} files.`,
           );

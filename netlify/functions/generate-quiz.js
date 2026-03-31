@@ -1,10 +1,4 @@
 const DEFAULT_MODEL = "gemini-2.5-flash";
-const ALLOWED_MODELS = [
-  "gemini-2.5-flash",
-  "gemini-2.5-pro",
-  "gemini-2.0-flash",
-  "gemini-2.0-flash-lite",
-];
 const MAX_PROMPT_LENGTH = 8000;
 const MAX_QUESTIONS = 20;
 const API_TIMEOUT_MS = 25000;
@@ -86,7 +80,7 @@ exports.handler = async (event) => {
     }
 
     const selectedModel =
-      typeof model === "string" && ALLOWED_MODELS.includes(model)
+      typeof model === "string" && model.startsWith("gemini-")
         ? model
         : DEFAULT_MODEL;
 

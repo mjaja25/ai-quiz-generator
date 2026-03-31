@@ -1194,6 +1194,7 @@
       }
 
       async function handleUpload(files) {
+        console.log("handleUpload called with", files.length, "files");
         const MAX_AVOID_FILES = 5;
         const remainingSlots = MAX_AVOID_FILES - uploadedFiles.length;
         if (remainingSlots <= 0) {
@@ -1209,11 +1210,15 @@
           );
         }
         try {
+          console.log("Loading PDF and Word libraries...");
           await Promise.all([ensurePDFJS(), ensureMammoth()]);
-        } catch {
+          console.log("Libraries loaded");
+        } catch (err) {
+          console.error("Library load error:", err);
           /* libraries may already be loaded or CDN unavailable */
         }
         for (const file of filesToProcess) {
+          console.log("Processing file:", file.name);
           try {
             let questions = [];
             if (file.name.endsWith(".docx")) {
@@ -1224,6 +1229,7 @@
               showToast(`Unsupported file: ${file.name}`);
               continue;
             }
+            console.log("Extracted questions:", questions.length);
             if (questions.length > 0) {
               // Deduplicate against existing
               const existing = new Set(

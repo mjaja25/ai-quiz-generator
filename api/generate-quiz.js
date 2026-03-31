@@ -1,4 +1,10 @@
-const MODEL = "gemini-2.5-flash";
+const DEFAULT_MODEL = "gemini-2.5-flash";
+const ALLOWED_MODELS = [
+  "gemini-2.5-flash",
+  "gemini-2.5-pro",
+  "gemini-2.0-flash",
+  "gemini-2.0-flash-lite",
+];
 const MAX_PROMPT_LENGTH = 8000;
 const MAX_QUESTIONS = 20;
 const API_TIMEOUT_MS = 25000;
@@ -18,7 +24,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { prompt } = req.body || {};
+    const { prompt, model } = req.body || {};
 
     if (!prompt || typeof prompt !== "string") {
       return res
@@ -46,7 +52,12 @@ export default async function handler(req, res) {
         .json({ error: "GEMINI_API_KEY environment variable is missing." });
     }
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`;
+    const selectedModel =
+      typeof model === "string" && ALLOWED_MODELS.includes(model)
+        ? model
+        : DEFAULT_MODEL;
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
 

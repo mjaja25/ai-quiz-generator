@@ -130,7 +130,11 @@
           <h1
             class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-2"
           >
-            Dream Centre MCQ Generator
+            Dream Centre MCQ Generato<span
+              id="easterEggTrigger"
+              style="cursor: default; user-select: none"
+              >r</span
+            >
           </h1>
           <p class="text-gray-400 dark:text-gray-500">
             AI-powered quiz creation tool
@@ -314,6 +318,32 @@
                 max="6"
               />
             </div>
+          </div>
+
+          <!-- Model Selection (hidden, unlocked via Easter egg) -->
+          <div id="modelSelection" class="hidden">
+            <label
+              for="modelSelect"
+              class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+            >
+              AI Model
+              <span class="text-gray-400 dark:text-gray-500 font-normal"
+                >(hidden setting)</span
+              >
+            </label>
+            <select
+              id="modelSelect"
+              class="w-full bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            >
+              <option value="gemini-2.5-flash" selected>
+                Gemini 2.5 Flash (default)
+              </option>
+              <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+              <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+              <option value="gemini-2.0-flash-lite">
+                Gemini 2.0 Flash Lite
+              </option>
+            </select>
           </div>
 
           <!-- PDF Settings (collapsible) -->
@@ -612,7 +642,8 @@
       const API_TIMEOUT_MS = 30000;
       const MAX_RETRIES = 2;
       const RETRY_DELAY_MS = 1000;
-      const GEMINI_MODEL = "gemini-2.5-flash";
+      let selectedModel = "gemini-2.5-flash";
+      let modelUnlocked = false;
       const LS_PREFIX = "dcquiz_";
 
       const TOPIC_SUGGESTIONS = [
@@ -740,6 +771,9 @@
       const pdfSettingsToggle = document.getElementById("pdfSettingsToggle");
       const pdfSettingsContent = document.getElementById("pdfSettingsContent");
       const pdfSettingsArrow = document.getElementById("pdfSettingsArrow");
+      const easterEggTrigger = document.getElementById("easterEggTrigger");
+      const modelSelection = document.getElementById("modelSelection");
+      const modelSelect = document.getElementById("modelSelect");
 
       // --- Theme toggle ---
       const themeToggle = document.getElementById("themeToggle");
@@ -770,6 +804,35 @@
       themeToggle.addEventListener("click", toggleTheme);
       // Load saved theme
       applyTheme(localStorage.getItem(LS_PREFIX + "theme") || "dark");
+
+      // --- Easter egg: triple-tap 'r' in Generator to unlock model selection ---
+      let easterEggTaps = 0;
+      let easterEggTimer = null;
+      easterEggTrigger.addEventListener("click", () => {
+        easterEggTaps++;
+        if (easterEggTaps === 1) {
+          easterEggTimer = setTimeout(() => {
+            easterEggTaps = 0;
+          }, 600);
+        }
+        if (easterEggTaps >= 3) {
+          clearTimeout(easterEggTimer);
+          easterEggTaps = 0;
+          modelUnlocked = !modelUnlocked;
+          modelSelection.classList.toggle("hidden", !modelUnlocked);
+          if (modelUnlocked) {
+            showToast("Model selection unlocked");
+          }
+        }
+      });
+
+      modelSelect.addEventListener("change", () => {
+        selectedModel = modelSelect.value;
+        showToast(
+          "Model changed to " +
+            modelSelect.options[modelSelect.selectedIndex].text,
+        );
+      });
 
       // --- Lazy-load pdf.js ---
       let pdfjsLoaded = false;
@@ -1447,7 +1510,7 @@
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ prompt }),
+              body: JSON.stringify({ prompt, model: selectedModel }),
             },
             MAX_RETRIES,
             API_TIMEOUT_MS,
@@ -1468,7 +1531,7 @@
           const apiKey = prompt("Enter your Gemini API key for local testing:");
           if (!apiKey)
             throw new Error("API key is required for local testing.");
-          const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`;
           response = await fetchWithRetry(
             url,
             {
